@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from './Button';
-import { Save, Key, ArrowLeft, ShieldCheck, Database } from 'lucide-react';
+import { Save, Key, ArrowLeft, ShieldCheck, Database, Smartphone, Info } from 'lucide-react';
 
 interface SettingsProps {
   onBack: () => void;
@@ -158,6 +158,16 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
                   <br/>4. Incolla qui sotto il codice.
                 </p>
              </div>
+
+             <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3">
+                <Smartphone className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-blue-800 leading-relaxed">
+                  <span className="font-bold block mb-1">Come vedere i dati sullo Smartphone?</span>
+                  Questa configurazione è salvata solo su questo browser. Per vedere gli stessi dati su un altro dispositivo (es. telefono), 
+                  devi copiare e incollare la stessa configurazione anche lì.
+                </p>
+             </div>
+
              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Firebase Configuration</label>
                 <textarea
