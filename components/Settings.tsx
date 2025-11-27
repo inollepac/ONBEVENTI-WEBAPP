@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from './Button';
-import { Save, Key, ArrowLeft, ShieldCheck, ExternalLink, Cloud, Database } from 'lucide-react';
+import { Save, Key, ArrowLeft, ShieldCheck, Database } from 'lucide-react';
 
 interface SettingsProps {
   onBack: () => void;
@@ -28,68 +28,81 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
     // Save Gemini Key
     localStorage.setItem('onbeventi_api_key', apiKey.trim());
     
-    // Save Firebase Config
+    // Save Firebase Config Logic - ROBUST EXTRACTION
     const configInput = firebaseConfig.trim();
     
     if (configInput) {
-      try {
-        let jsonString = configInput;
+      const extractedConfig: Record<string, string> = {};
+      
+      // Lista delle chiavi che ci aspettiamo di trovare nella config di Firebase
+      const keysToExtract = [
+        'apiKey',
+        'authDomain',
+        'projectId',
+        'storageBucket',
+        'messagingSenderId',
+        'appId',
+        'measurementId'
+      ];
 
-        // 1. Estrai solo l'oggetto tra parentesi graffe {}
-        // Questo risolve il caso in cui l'utente incolla "const firebaseConfig = { ... };"
-        const firstBrace = jsonString.indexOf('{');
-        const lastBrace = jsonString.lastIndexOf('}');
-
-        if (firstBrace !== -1 && lastBrace !== -1) {
-            jsonString = jsonString.substring(firstBrace, lastBrace + 1);
-        }
-
-        // 2. Rimuovi commenti Javascript (// ...)
-        jsonString = jsonString.replace(/\/\/.*$/gm, '');
-
-        // 3. Normalizza le chiavi: trasforma apiKey: o 'apiKey': in "apiKey":
-        jsonString = jsonString.replace(/(['"])?([a-zA-Z0-9_]+)(['"])?\s*:/g, '"$2":');
-
-        // 4. Normalizza i valori stringa: trasforma 'valore' in "valore"
-        // Attenzione: sostituisce tutti gli apici singoli con doppi. 
-        // Per le config Firebase è sicuro perché non contengono testi complessi con apostrofi.
-        jsonString = jsonString.replace(/'/g, '"');
-
-        // 5. Rimuovi virgole finali (trailing commas) che rompono il JSON.parse
-        jsonString = jsonString.replace(/,(\s*})/g, '$1');
-
-        const parsed = JSON.parse(jsonString);
+      // Scansiona il testo input cercando pattern: chiave: "valore" oppure 'valore'
+      // Questo metodo ignora parentesi graffe, virgole mancanti, 'const =', ecc.
+      keysToExtract.forEach(key => {
+        // Regex: 
+        // 1. Cerca il nome della chiave (es. apiKey), opzionalmente tra virgolette
+        // 2. Cerca due punti :
+        // 3. Cerca il valore tra virgolette singole o doppie
+        const regex = new RegExp(`(?:["']?)${key}(?:["']?)\\s*:\\s*(["'])(.*?)\\1`);
+        const match = configInput.match(regex);
         
-        // Validazione minima
-        if (parsed.apiKey && parsed.projectId) {
-           // Salviamo la versione "pulita" JSON stringified
-           const cleanConfig = JSON.stringify(parsed, null, 2);
-           localStorage.setItem('onbeventi_firebase_config', cleanConfig);
-           setFirebaseConfig(cleanConfig);
-        } else {
-          setError("La configurazione sembra incompleta. Assicurati che ci siano 'apiKey' e 'projectId'.");
-          return;
+        if (match && match[2]) {
+          extractedConfig[key] = match[2];
         }
-      } catch (e) {
-        console.error(e);
-        setError("Impossibile leggere la configurazione. Assicurati di aver copiato l'intero blocco tra { e }.");
-        return;
+      });
+
+      // Validazione: controlliamo se abbiamo trovato almeno le chiavi fondamentali
+      if (extractedConfig.apiKey && extractedConfig.projectId) {
+         // Successo! Salviamo l'oggetto pulito
+         const cleanConfig = JSON.stringify(extractedConfig, null, 2);
+         localStorage.setItem('onbeventi_firebase_config', cleanConfig);
+         setFirebaseConfig(cleanConfig);
+         
+         setSaved(true);
+         setTimeout(() => {
+           setSaved(false);
+           window.location.reload();
+         }, 1500);
+      } else {
+        // Tentativo disperato: proviamo il JSON.parse classico nel caso il formato sia JSON standard
+        try {
+          const parsed = JSON.parse(configInput);
+          if (parsed.apiKey) {
+             localStorage.setItem('onbeventi_firebase_config', JSON.stringify(parsed, null, 2));
+             setSaved(true);
+             setTimeout(() => { setSaved(false); window.location.reload(); }, 1500);
+             return;
+          }
+        } catch (e) {
+          // Ignora errore parsing classico
+        }
+
+        console.error("Chiavi estratte:", extractedConfig);
+        setError("Impossibile trovare 'apiKey' e 'projectId' nel testo incollato. Assicurati di aver copiato il blocco con i dati.");
       }
     } else {
+      // Se il campo è vuoto, rimuoviamo la config (torna in locale)
       localStorage.removeItem('onbeventi_firebase_config');
+      setSaved(true);
+      setTimeout(() => {
+        setSaved(false);
+        window.location.reload();
+      }, 1500);
     }
-
-    setSaved(true);
-    setTimeout(() => {
-      setSaved(false);
-      // Ricarica la pagina per applicare il cambio di storage (da locale a cloud o viceversa)
-      window.location.reload();
-    }, 1500);
   };
 
   return (
     <div className="max-w-2xl mx-auto animate-fade-in pb-10">
-      <button onClick={onBack} className="mb-6 flex items-center text-sm text-gray-500 hover:text-pink-600 transition-colors font-medium">
+      <button onClick={onBack} className="mb-6 flex items-center text-sm text-gray-500 hover:text-pink-600 transition-colors font-medium" type="button">
         <ArrowLeft className="w-4 h-4 mr-1" />
         Torna alla Dashboard
       </button>
@@ -150,7 +163,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
                 <textarea
                   value={firebaseConfig}
                   onChange={(e) => setFirebaseConfig(e.target.value)}
-                  placeholder={'Incolla qui: const firebaseConfig = { ... }'}
+                  placeholder={'Incolla qui tutto il blocco: const firebaseConfig = { ... }'}
                   rows={8}
                   className="w-full px-4 py-3 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-pink-500 font-mono bg-gray-50"
                 />
