@@ -35,30 +35,44 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
       try {
         let jsonString = configInput;
 
-        // Tenta di correggere il formato JS Object (chiavi senza virgolette) in JSON valido
-        // Esempio: apiKey: "123" -> "apiKey": "123"
-        // Questo regex cerca parole seguite da due punti e aggiunge le virgolette se mancano
-        if (!configInput.startsWith('"') && !configInput.includes('"apiKey"')) {
-           jsonString = configInput.replace(/(\w+):/g, '"$1":');
-           // Rimuove eventuali virgole finali (trailing commas) che rompono il JSON.parse
-           jsonString = jsonString.replace(/,(\s*})/g, '$1');
+        // 1. Estrai solo l'oggetto tra parentesi graffe {}
+        // Questo risolve il caso in cui l'utente incolla "const firebaseConfig = { ... };"
+        const firstBrace = jsonString.indexOf('{');
+        const lastBrace = jsonString.lastIndexOf('}');
+
+        if (firstBrace !== -1 && lastBrace !== -1) {
+            jsonString = jsonString.substring(firstBrace, lastBrace + 1);
         }
+
+        // 2. Rimuovi commenti Javascript (// ...)
+        jsonString = jsonString.replace(/\/\/.*$/gm, '');
+
+        // 3. Normalizza le chiavi: trasforma apiKey: o 'apiKey': in "apiKey":
+        jsonString = jsonString.replace(/(['"])?([a-zA-Z0-9_]+)(['"])?\s*:/g, '"$2":');
+
+        // 4. Normalizza i valori stringa: trasforma 'valore' in "valore"
+        // Attenzione: sostituisce tutti gli apici singoli con doppi. 
+        // Per le config Firebase è sicuro perché non contengono testi complessi con apostrofi.
+        jsonString = jsonString.replace(/'/g, '"');
+
+        // 5. Rimuovi virgole finali (trailing commas) che rompono il JSON.parse
+        jsonString = jsonString.replace(/,(\s*})/g, '$1');
 
         const parsed = JSON.parse(jsonString);
         
         // Validazione minima
         if (parsed.apiKey && parsed.projectId) {
-           // Salviamo la versione "pulita" JSON stringified per evitare problemi futuri
-           localStorage.setItem('onbeventi_firebase_config', JSON.stringify(parsed, null, 2));
-           // Aggiorniamo anche l'input visualizzato per conferma
-           setFirebaseConfig(JSON.stringify(parsed, null, 2));
+           // Salviamo la versione "pulita" JSON stringified
+           const cleanConfig = JSON.stringify(parsed, null, 2);
+           localStorage.setItem('onbeventi_firebase_config', cleanConfig);
+           setFirebaseConfig(cleanConfig);
         } else {
           setError("La configurazione sembra incompleta. Assicurati che ci siano 'apiKey' e 'projectId'.");
           return;
         }
       } catch (e) {
         console.error(e);
-        setError("Formato non valido. Copia esattamente l'oggetto { ... } dalla console di Firebase.");
+        setError("Impossibile leggere la configurazione. Assicurati di aver copiato l'intero blocco tra { e }.");
         return;
       }
     } else {
@@ -68,7 +82,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
     setSaved(true);
     setTimeout(() => {
       setSaved(false);
-      // Force reload to apply storage changes logic
+      // Ricarica la pagina per applicare il cambio di storage (da locale a cloud o viceversa)
       window.location.reload();
     }, 1500);
   };
@@ -128,7 +142,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
                   <br/>1. Vai su <a href="https://console.firebase.google.com/" target="_blank" className="underline font-bold">Firebase Console</a> e crea un progetto.
                   <br/>2. Crea un <strong>Firestore Database</strong> (in modalità test).
                   <br/>3. Vai in "Impostazioni Progetto", aggiungi un'app Web (<code>&lt;/&gt;</code>) e copia la configurazione <code>const firebaseConfig = &#123;...&#125;</code>.
-                  <br/>4. Incolla qui sotto solo la parte tra parentesi graffe <code>&#123; ... &#125;</code>.
+                  <br/>4. Incolla qui sotto il codice.
                 </p>
              </div>
              <div>
@@ -136,7 +150,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
                 <textarea
                   value={firebaseConfig}
                   onChange={(e) => setFirebaseConfig(e.target.value)}
-                  placeholder={'{ \n  apiKey: "AIza...", \n  authDomain: "...", \n  projectId: "..." \n}'}
+                  placeholder={'Incolla qui: const firebaseConfig = { ... }'}
                   rows={8}
                   className="w-full px-4 py-3 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-pink-500 font-mono bg-gray-50"
                 />
