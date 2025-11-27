@@ -22,6 +22,7 @@ interface EventDetailsProps {
 export const EventDetails: React.FC<EventDetailsProps> = ({ event, onBack, onUpdate, onDelete, onEditEvent }) => {
   const [showAddAttendee, setShowAddAttendee] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);
+  const [loading, setLoading] = useState(false);
   
   // State for new Attendee
   const [newAttendee, setNewAttendee] = useState({ name: '', email: '', phone: '' });
@@ -47,12 +48,14 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, onBack, onUpd
 
   // --- ATTENDEE LOGIC ---
 
-  const handleAddAttendee = (e: React.FormEvent) => {
+  const handleAddAttendee = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     
     // Check limit
     if (event.maxAttendees && event.attendees.length >= event.maxAttendees) {
       alert("Numero massimo di partecipanti raggiunto.");
+      setLoading(false);
       return;
     }
 
@@ -65,11 +68,15 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, onBack, onUpd
       registrationDate: new Date().toISOString()
     };
     
-    const updated = addAttendee(event.id, attendee);
-    if (updated) {
-      onUpdate(updated);
-      setNewAttendee({ name: '', email: '', phone: '' });
-      setShowAddAttendee(false);
+    try {
+      const updated = await addAttendee(event.id, attendee);
+      if (updated) {
+        onUpdate(updated);
+        setNewAttendee({ name: '', email: '', phone: '' });
+        setShowAddAttendee(false);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -87,23 +94,33 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, onBack, onUpd
     setEditAttendeeData({ name: '', email: '', phone: '' });
   };
 
-  const saveEditedAttendee = (originalAttendee: Attendee) => {
+  const saveEditedAttendee = async (originalAttendee: Attendee) => {
     const updatedAttendee: Attendee = {
       ...originalAttendee,
       name: editAttendeeData.name,
       email: editAttendeeData.email,
       phone: editAttendeeData.phone,
     };
-    const updatedEvent = updateAttendee(event.id, updatedAttendee);
-    if (updatedEvent) {
-      onUpdate(updatedEvent);
-      setEditingAttendeeId(null);
+    setLoading(true);
+    try {
+      const updatedEvent = await updateAttendee(event.id, updatedAttendee);
+      if (updatedEvent) {
+        onUpdate(updatedEvent);
+        setEditingAttendeeId(null);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleTogglePayment = (attendeeId: string) => {
-    const updated = togglePaymentStatus(event.id, attendeeId);
-    if (updated) onUpdate(updated);
+  const handleTogglePayment = async (attendeeId: string) => {
+    setLoading(true);
+    try {
+      const updated = await togglePaymentStatus(event.id, attendeeId);
+      if (updated) onUpdate(updated);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // --- DELETE REQUESTS (Open Modal) ---
@@ -136,39 +153,47 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, onBack, onUpd
 
   // --- EXECUTE DELETE (Called from Modal) ---
 
-  const executeDelete = () => {
-    if (confirmModal.type === 'DELETE_EVENT') {
-      deleteEvent(event.id);
-      onDelete(); // Navigates back to dashboard
-    } 
-    else if (confirmModal.type === 'DELETE_ATTENDEE' && confirmModal.itemId) {
-      const updated = deleteAttendee(event.id, confirmModal.itemId);
-      if (updated) onUpdate(updated);
-    } 
-    else if (confirmModal.type === 'DELETE_EXPENSE' && confirmModal.itemId) {
-      const updated = deleteExpense(event.id, confirmModal.itemId);
-      if (updated) onUpdate(updated);
+  const executeDelete = async () => {
+    setLoading(true);
+    try {
+      if (confirmModal.type === 'DELETE_EVENT') {
+        await deleteEvent(event.id);
+        onDelete(); // Navigates back to dashboard
+      } 
+      else if (confirmModal.type === 'DELETE_ATTENDEE' && confirmModal.itemId) {
+        const updated = await deleteAttendee(event.id, confirmModal.itemId);
+        if (updated) onUpdate(updated);
+      } 
+      else if (confirmModal.type === 'DELETE_EXPENSE' && confirmModal.itemId) {
+        const updated = await deleteExpense(event.id, confirmModal.itemId);
+        if (updated) onUpdate(updated);
+      }
+    } finally {
+      setLoading(false);
+      setConfirmModal({ isOpen: false, type: null, message: '' });
     }
-
-    // Close modal
-    setConfirmModal({ isOpen: false, type: null, message: '' });
   };
 
   // --- EXPENSE ADD LOGIC ---
 
-  const handleAddExpense = (e: React.FormEvent) => {
+  const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     const expense: Expense = {
       id: generateId(),
       description: newExpense.description,
       amount: Number(newExpense.amount)
     };
     
-    const updated = addExpense(event.id, expense);
-    if (updated) {
-      onUpdate(updated);
-      setNewExpense({ description: '', amount: '' });
-      setShowAddExpense(false);
+    try {
+      const updated = await addExpense(event.id, expense);
+      if (updated) {
+        onUpdate(updated);
+        setNewExpense({ description: '', amount: '' });
+        setShowAddExpense(false);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -190,6 +215,12 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, onBack, onUpd
   return (
     <div className="space-y-8 animate-fade-in pb-10 relative">
       
+      {loading && (
+        <div className="fixed inset-0 z-[60] bg-white/50 backdrop-blur-sm flex items-center justify-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-pink-600"></div>
+        </div>
+      )}
+
       {/* --- CUSTOM CONFIRMATION MODAL --- */}
       {confirmModal.isOpen && (
         <div className="fixed inset-0 bg-indigo-950/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
@@ -213,6 +244,7 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, onBack, onUpd
                 variant="danger" 
                 onClick={executeDelete}
                 className="w-full shadow-red-200"
+                isLoading={loading}
               >
                 Elimina
               </Button>
@@ -379,7 +411,7 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, onBack, onUpd
                         value={newExpense.amount}
                         onChange={e => setNewExpense(prev => ({...prev, amount: e.target.value}))}
                       />
-                      <Button type="submit" className="whitespace-nowrap text-xs py-1">Salva</Button>
+                      <Button type="submit" className="whitespace-nowrap text-xs py-1" isLoading={loading}>Salva</Button>
                     </div>
                  </form>
               </div>
@@ -483,7 +515,7 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, onBack, onUpd
                   </div>
                   <div className="flex justify-end gap-2 pt-2">
                     <Button type="button" variant="ghost" onClick={() => setShowAddAttendee(false)}>Chiudi</Button>
-                    <Button type="submit">Inserisci in lista</Button>
+                    <Button type="submit" isLoading={loading}>Inserisci in lista</Button>
                   </div>
                 </form>
               </div>
@@ -570,6 +602,7 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, onBack, onUpd
                              {!isEditing && (
                               <button 
                                 onClick={() => handleTogglePayment(attendee.id)}
+                                disabled={loading}
                                 className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide transition-all shadow-sm transform hover:scale-105 ${
                                   attendee.status === PaymentStatus.PAID 
                                     ? 'bg-green-100 text-green-700 border border-green-200' 
@@ -590,10 +623,10 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, onBack, onUpd
                           <td className="px-6 py-4 text-right">
                             {isEditing ? (
                               <div className="flex justify-end gap-2">
-                                <button onClick={() => saveEditedAttendee(attendee)} className="text-white bg-green-500 hover:bg-green-600 p-1.5 rounded-lg shadow-sm" title="Salva" type="button">
+                                <button onClick={() => saveEditedAttendee(attendee)} className="text-white bg-green-500 hover:bg-green-600 p-1.5 rounded-lg shadow-sm" title="Salva" type="button" disabled={loading}>
                                   <Save className="w-4 h-4" />
                                 </button>
-                                <button onClick={cancelEditingAttendee} className="text-white bg-gray-400 hover:bg-gray-500 p-1.5 rounded-lg shadow-sm" title="Annulla" type="button">
+                                <button onClick={cancelEditingAttendee} className="text-white bg-gray-400 hover:bg-gray-500 p-1.5 rounded-lg shadow-sm" title="Annulla" type="button" disabled={loading}>
                                   <X className="w-4 h-4" />
                                 </button>
                               </div>
@@ -604,6 +637,7 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, onBack, onUpd
                                   className="text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg transition-colors"
                                   title="Modifica Dati"
                                   type="button"
+                                  disabled={loading}
                                 >
                                   <Edit2 className="w-4 h-4" />
                                 </button>
@@ -616,6 +650,7 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, onBack, onUpd
                                   className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors"
                                   title="Rimuovi"
                                   type="button"
+                                  disabled={loading}
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>

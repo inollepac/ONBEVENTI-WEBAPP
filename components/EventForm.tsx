@@ -6,9 +6,9 @@ import { generateId } from '../services/storageService';
 import { Wand2, ArrowLeft, Calendar, MapPin, Clock, DollarSign, Users, Type } from 'lucide-react';
 
 interface EventFormProps {
-  onSave: (event: AppEvent) => void;
+  onSave: (event: AppEvent) => Promise<void>; // Updated to Promise
   onCancel: () => void;
-  initialData?: AppEvent; // Optional prop for editing
+  initialData?: AppEvent; 
 }
 
 export const EventForm: React.FC<EventFormProps> = ({ onSave, onCancel, initialData }) => {
@@ -56,28 +56,33 @@ export const EventForm: React.FC<EventFormProps> = ({ onSave, onCancel, initialD
     setGenerating(false);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     
-    setTimeout(() => {
-      const eventToSave: AppEvent = {
-        id: initialData ? initialData.id : generateId(),
-        title: formData.title,
-        date: formData.date,
-        time: formData.time,
-        location: formData.location,
-        cost: Number(formData.cost),
-        maxAttendees: formData.maxAttendees ? Number(formData.maxAttendees) : undefined,
-        description: formData.description,
-        attendees: initialData ? initialData.attendees : [],
-        expenses: initialData ? (initialData.expenses || []) : [],
-        createdAt: initialData ? initialData.createdAt : new Date().toISOString()
-      };
-      
-      onSave(eventToSave);
+    const eventToSave: AppEvent = {
+      id: initialData ? initialData.id : generateId(),
+      title: formData.title,
+      date: formData.date,
+      time: formData.time,
+      location: formData.location,
+      cost: Number(formData.cost),
+      maxAttendees: formData.maxAttendees ? Number(formData.maxAttendees) : undefined,
+      description: formData.description,
+      attendees: initialData ? initialData.attendees : [],
+      expenses: initialData ? (initialData.expenses || []) : [],
+      createdAt: initialData ? initialData.createdAt : new Date().toISOString()
+    };
+    
+    try {
+      await onSave(eventToSave);
+      // Loading state is handled by parent refresh or component unmount, but we reset here just in case
       setLoading(false);
-    }, 500);
+    } catch (error) {
+      console.error("Failed to save", error);
+      setLoading(false);
+      alert("Errore durante il salvataggio.");
+    }
   };
 
   const inputClasses = "w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all shadow-sm";

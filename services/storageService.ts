@@ -1,128 +1,188 @@
 import { AppEvent, Attendee, Expense, PaymentStatus } from '../types';
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, getDoc, updateDoc } from "firebase/firestore";
 
 const STORAGE_KEY = 'onbeventi_data_v1';
+const FIREBASE_CONFIG_KEY = 'onbeventi_firebase_config';
 
-// Semplificato per massima compatibilità
+// Helper per ottenere l'istanza DB se configurata
+const getDb = () => {
+  const configStr = localStorage.getItem(FIREBASE_CONFIG_KEY);
+  if (!configStr) return null;
+
+  try {
+    const firebaseConfig = JSON.parse(configStr);
+    // Evita di reinizializzare se esiste già
+    const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    return getFirestore(app);
+  } catch (e) {
+    console.error("Firebase config error", e);
+    return null;
+  }
+};
+
 export const generateId = (): string => {
   return Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
 };
 
-export const getEvents = (): AppEvent[] => {
+// --- LOCAL STORAGE HELPERS ---
+const getLocalEvents = (): AppEvent[] => {
   try {
     const data = localStorage.getItem(STORAGE_KEY);
     return data ? JSON.parse(data) : [];
   } catch (e) {
-    console.error("Error reading events", e);
     return [];
   }
 };
 
-export const saveEvent = (event: AppEvent): void => {
-  const events = getEvents();
-  const existingIndex = events.findIndex((e) => e.id === event.id);
+const saveLocalEvents = (events: AppEvent[]) => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+};
+
+// --- UNIFIED ASYNC API ---
+
+export const isCloudEnabled = (): boolean => {
+  return !!localStorage.getItem(FIREBASE_CONFIG_KEY);
+};
+
+export const getEvents = async (): Promise<AppEvent[]> => {
+  const db = getDb();
   
-  if (existingIndex >= 0) {
-    events[existingIndex] = event;
+  if (db) {
+    try {
+      const querySnapshot = await getDocs(collection(db, "events"));
+      const events: AppEvent[] = [];
+      querySnapshot.forEach((doc) => {
+        events.push(doc.data() as AppEvent);
+      });
+      return events;
+    } catch (e) {
+      console.error("Error fetching from Firebase", e);
+      // Fallback or error handling could go here
+      return [];
+    }
   } else {
-    events.push(event);
+    // Local Storage (simulate async)
+    return new Promise((resolve) => {
+      resolve(getLocalEvents());
+    });
   }
-  
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
 };
 
-export const deleteEvent = (eventId: string): void => {
-  const events = getEvents();
-  const filteredEvents = events.filter((e) => e.id !== eventId);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(filteredEvents));
-};
-
-export const addAttendee = (eventId: string, attendee: Attendee): AppEvent | null => {
-  const events = getEvents();
-  const eventIndex = events.findIndex((e) => e.id === eventId);
+export const saveEvent = async (event: AppEvent): Promise<void> => {
+  const db = getDb();
   
-  if (eventIndex === -1) return null;
-  
-  // Check max attendees
-  const event = events[eventIndex];
-  if (event.maxAttendees && event.attendees.length >= event.maxAttendees) {
-    return null; // Capacity reached
+  if (db) {
+    try {
+      await setDoc(doc(db, "events", event.id), event);
+    } catch (e) {
+      console.error("Error saving to Firebase", e);
+      throw e;
+    }
+  } else {
+    const events = getLocalEvents();
+    const existingIndex = events.findIndex((e) => e.id === event.id);
+    if (existingIndex >= 0) {
+      events[existingIndex] = event;
+    } else {
+      events.push(event);
+    }
+    saveLocalEvents(events);
   }
-
-  events[eventIndex].attendees.push(attendee);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
-  return events[eventIndex];
 };
 
-export const updateAttendee = (eventId: string, updatedAttendee: Attendee): AppEvent | null => {
-  const events = getEvents();
-  const eventIndex = events.findIndex((e) => e.id === eventId);
-  if (eventIndex === -1) return null;
+export const deleteEvent = async (eventId: string): Promise<void> => {
+  const db = getDb();
 
-  const attendeeIndex = events[eventIndex].attendees.findIndex(a => a.id === updatedAttendee.id);
-  if (attendeeIndex === -1) return null;
-
-  events[eventIndex].attendees[attendeeIndex] = updatedAttendee;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
-  return events[eventIndex];
-};
-
-export const togglePaymentStatus = (eventId: string, attendeeId: string): AppEvent | null => {
-  const events = getEvents();
-  const eventIndex = events.findIndex((e) => e.id === eventId);
-  
-  if (eventIndex === -1) return null;
-  
-  const attendeeIndex = events[eventIndex].attendees.findIndex(a => a.id === attendeeId);
-  if (attendeeIndex === -1) return null;
-
-  const currentStatus = events[eventIndex].attendees[attendeeIndex].status;
-  events[eventIndex].attendees[attendeeIndex].status = 
-    currentStatus === PaymentStatus.PAID ? PaymentStatus.PENDING : PaymentStatus.PAID;
-
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
-  return events[eventIndex];
-};
-
-export const deleteAttendee = (eventId: string, attendeeId: string): AppEvent | null => {
-  const events = getEvents();
-  const eventIndex = events.findIndex((e) => e.id === eventId);
-  
-  if (eventIndex === -1) return null;
-
-  const initialLength = events[eventIndex].attendees.length;
-  events[eventIndex].attendees = events[eventIndex].attendees.filter(a => a.id !== attendeeId);
-  
-  // Check validation
-  if (events[eventIndex].attendees.length === initialLength) {
-    console.warn("Nessun partecipante eliminato. ID non trovato:", attendeeId);
+  if (db) {
+    await deleteDoc(doc(db, "events", eventId));
+  } else {
+    const events = getLocalEvents();
+    const filteredEvents = events.filter((e) => e.id !== eventId);
+    saveLocalEvents(filteredEvents);
   }
-
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
-  return events[eventIndex];
 };
 
-export const addExpense = (eventId: string, expense: Expense): AppEvent | null => {
-  const events = getEvents();
-  const eventIndex = events.findIndex((e) => e.id === eventId);
-  
-  if (eventIndex === -1) return null;
+// Generic helper to update a specific event (used by attendee/expense functions)
+const updateSingleEvent = async (eventId: string, updateFn: (event: AppEvent) => AppEvent): Promise<AppEvent | null> => {
+  const db = getDb();
 
-  if (!events[eventIndex].expenses) events[eventIndex].expenses = [];
-  
-  events[eventIndex].expenses.push(expense);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
-  return events[eventIndex];
-};
-
-export const deleteExpense = (eventId: string, expenseId: string): AppEvent | null => {
-  const events = getEvents();
-  const eventIndex = events.findIndex((e) => e.id === eventId);
-  
-  if (eventIndex === -1) return null;
-
-  if (events[eventIndex].expenses) {
-    events[eventIndex].expenses = events[eventIndex].expenses.filter(e => e.id !== expenseId);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+  if (db) {
+    // Firebase: Fetch, Update, Save
+    const docRef = doc(db, "events", eventId);
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      const event = docSnap.data() as AppEvent;
+      const updatedEvent = updateFn(event);
+      await setDoc(docRef, updatedEvent);
+      return updatedEvent;
+    }
+    return null;
+  } else {
+    // Local
+    const events = getLocalEvents();
+    const eventIndex = events.findIndex((e) => e.id === eventId);
+    if (eventIndex === -1) return null;
+    
+    const updatedEvent = updateFn(events[eventIndex]);
+    events[eventIndex] = updatedEvent;
+    saveLocalEvents(events);
+    return updatedEvent;
   }
-  return events[eventIndex];
+};
+
+export const addAttendee = async (eventId: string, attendee: Attendee): Promise<AppEvent | null> => {
+  return updateSingleEvent(eventId, (event) => {
+    if (event.maxAttendees && event.attendees.length >= event.maxAttendees) {
+      return event; // Should handle error ideally
+    }
+    event.attendees.push(attendee);
+    return event;
+  });
+};
+
+export const updateAttendee = async (eventId: string, updatedAttendee: Attendee): Promise<AppEvent | null> => {
+  return updateSingleEvent(eventId, (event) => {
+    const index = event.attendees.findIndex(a => a.id === updatedAttendee.id);
+    if (index !== -1) {
+      event.attendees[index] = updatedAttendee;
+    }
+    return event;
+  });
+};
+
+export const togglePaymentStatus = async (eventId: string, attendeeId: string): Promise<AppEvent | null> => {
+  return updateSingleEvent(eventId, (event) => {
+    const index = event.attendees.findIndex(a => a.id === attendeeId);
+    if (index !== -1) {
+      const currentStatus = event.attendees[index].status;
+      event.attendees[index].status = currentStatus === PaymentStatus.PAID ? PaymentStatus.PENDING : PaymentStatus.PAID;
+    }
+    return event;
+  });
+};
+
+export const deleteAttendee = async (eventId: string, attendeeId: string): Promise<AppEvent | null> => {
+  return updateSingleEvent(eventId, (event) => {
+    event.attendees = event.attendees.filter(a => a.id !== attendeeId);
+    return event;
+  });
+};
+
+export const addExpense = async (eventId: string, expense: Expense): Promise<AppEvent | null> => {
+  return updateSingleEvent(eventId, (event) => {
+    if (!event.expenses) event.expenses = [];
+    event.expenses.push(expense);
+    return event;
+  });
+};
+
+export const deleteExpense = async (eventId: string, expenseId: string): Promise<AppEvent | null> => {
+  return updateSingleEvent(eventId, (event) => {
+    if (event.expenses) {
+      event.expenses = event.expenses.filter(e => e.id !== expenseId);
+    }
+    return event;
+  });
 };

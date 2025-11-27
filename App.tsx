@@ -1,24 +1,34 @@
-
 import React, { useEffect, useState } from 'react';
 import { ViewState, AppEvent } from './types';
-import { getEvents, saveEvent } from './services/storageService';
+import { getEvents, saveEvent, isCloudEnabled } from './services/storageService';
 import { Dashboard } from './components/Dashboard';
 import { EventForm } from './components/EventForm';
 import { EventDetails } from './components/EventDetails';
 import { Settings } from './components/Settings';
-import { LayoutDashboard, Settings as SettingsIcon } from 'lucide-react';
+import { LayoutDashboard, Settings as SettingsIcon, Cloud, CloudOff, RefreshCw } from 'lucide-react';
 
 export default function App() {
   const [viewState, setViewState] = useState<ViewState>({ type: 'DASHBOARD' });
   const [events, setEvents] = useState<AppEvent[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isCloud, setIsCloud] = useState(false);
 
   // Load events on mount
   useEffect(() => {
     refreshEvents();
   }, []);
 
-  const refreshEvents = () => {
-    setEvents(getEvents());
+  const refreshEvents = async () => {
+    setIsLoading(true);
+    setIsCloud(isCloudEnabled());
+    try {
+      const data = await getEvents();
+      setEvents(data);
+    } catch (e) {
+      console.error("Failed to load events", e);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const navigateToDashboard = () => {
@@ -26,17 +36,28 @@ export default function App() {
     refreshEvents();
   };
 
-  const handleEventSaved = (event: AppEvent) => {
-    saveEvent(event);
+  const handleEventSaved = async (event: AppEvent) => {
+    setIsLoading(true);
+    await saveEvent(event);
     setViewState({ type: 'EVENT_DETAILS', eventId: event.id });
-    refreshEvents();
+    await refreshEvents();
   };
 
-  const handleEventUpdated = (updatedEvent: AppEvent) => {
-    refreshEvents();
+  const handleEventUpdated = async (updatedEvent: AppEvent) => {
+    // In cloud mode, we re-fetch to ensure consistency or optimize by updating local state
+    // For simplicity, we update local list then trigger refresh in background
+    setEvents(prev => prev.map(e => e.id === updatedEvent.id ? updatedEvent : e));
   };
 
   const renderContent = () => {
+    if (isLoading && events.length === 0) {
+      return (
+        <div className="flex h-[50vh] items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600"></div>
+        </div>
+      );
+    }
+
     switch (viewState.type) {
       case 'DASHBOARD':
         return (
@@ -148,14 +169,18 @@ export default function App() {
         <div className="p-6 mt-auto relative z-10">
           <div className="bg-indigo-900/40 border border-indigo-800/50 rounded-xl p-4 backdrop-blur-sm">
             <div className="flex items-center justify-between mb-2">
-               <p className="text-[10px] text-indigo-300 font-bold uppercase tracking-wider">System Status</p>
-               <span className="flex h-2 w-2 relative">
-                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                 <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500 box-shadow-green-glow"></span>
-               </span>
+               <p className="text-[10px] text-indigo-300 font-bold uppercase tracking-wider">Storage Mode</p>
+               {isCloud ? (
+                 <Cloud className="w-4 h-4 text-green-400" />
+               ) : (
+                 <CloudOff className="w-4 h-4 text-gray-400" />
+               )}
             </div>
-            <div className="text-xs text-indigo-200 font-medium">
-               Online v1.3
+            <div className="text-xs text-indigo-200 font-medium flex items-center justify-between">
+               {isCloud ? 'Cloud Sync Attivo' : 'Salvataggio Locale'}
+               <button onClick={refreshEvents} className="hover:text-white transition-colors" title="Ricarica">
+                 <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
+               </button>
             </div>
           </div>
         </div>
