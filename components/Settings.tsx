@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from './Button';
 import { Save, Key, ArrowLeft, ShieldCheck, ExternalLink, Cloud, Database } from 'lucide-react';
@@ -10,6 +11,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
   const [apiKey, setApiKey] = useState('');
   const [firebaseConfig, setFirebaseConfig] = useState('');
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const existingKey = localStorage.getItem('onbeventi_api_key');
@@ -21,20 +23,42 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
+    // Save Gemini Key
     localStorage.setItem('onbeventi_api_key', apiKey.trim());
     
-    if (firebaseConfig.trim()) {
-      // Basic validation
+    // Save Firebase Config
+    const configInput = firebaseConfig.trim();
+    
+    if (configInput) {
       try {
-        const parsed = JSON.parse(firebaseConfig);
+        let jsonString = configInput;
+
+        // Tenta di correggere il formato JS Object (chiavi senza virgolette) in JSON valido
+        // Esempio: apiKey: "123" -> "apiKey": "123"
+        // Questo regex cerca parole seguite da due punti e aggiunge le virgolette se mancano
+        if (!configInput.startsWith('"') && !configInput.includes('"apiKey"')) {
+           jsonString = configInput.replace(/(\w+):/g, '"$1":');
+           // Rimuove eventuali virgole finali (trailing commas) che rompono il JSON.parse
+           jsonString = jsonString.replace(/,(\s*})/g, '$1');
+        }
+
+        const parsed = JSON.parse(jsonString);
+        
+        // Validazione minima
         if (parsed.apiKey && parsed.projectId) {
-           localStorage.setItem('onbeventi_firebase_config', firebaseConfig.trim());
+           // Salviamo la versione "pulita" JSON stringified per evitare problemi futuri
+           localStorage.setItem('onbeventi_firebase_config', JSON.stringify(parsed, null, 2));
+           // Aggiorniamo anche l'input visualizzato per conferma
+           setFirebaseConfig(JSON.stringify(parsed, null, 2));
         } else {
-          alert("Configurazione Firebase non valida. Assicurati di incollare l'oggetto JSON completo.");
+          setError("La configurazione sembra incompleta. Assicurati che ci siano 'apiKey' e 'projectId'.");
           return;
         }
       } catch (e) {
-        alert("JSON Firebase non valido.");
+        console.error(e);
+        setError("Formato non valido. Copia esattamente l'oggetto { ... } dalla console di Firebase.");
         return;
       }
     } else {
@@ -44,7 +68,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
     setSaved(true);
     setTimeout(() => {
       setSaved(false);
-      // Force reload to apply storage changes
+      // Force reload to apply storage changes logic
       window.location.reload();
     }, 1500);
   };
@@ -100,20 +124,23 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
              </h3>
              <div className="bg-orange-50 border border-orange-100 rounded-xl p-4">
                 <p className="text-xs text-orange-800 leading-relaxed">
-                  Per sincronizzare i dati tra più dispositivi, crea un progetto su <a href="https://console.firebase.google.com/" target="_blank" className="underline font-bold">Firebase Console</a>, crea un database <strong>Firestore</strong> e incolla qui sotto l'oggetto di configurazione (quello che contiene <code>apiKey</code>, <code>projectId</code>, ecc.).
-                  <br/><br/>
-                  <strong>Lascia vuoto per salvare i dati solo su questo dispositivo.</strong>
+                  Per sincronizzare i dati tra più dispositivi:
+                  <br/>1. Vai su <a href="https://console.firebase.google.com/" target="_blank" className="underline font-bold">Firebase Console</a> e crea un progetto.
+                  <br/>2. Crea un <strong>Firestore Database</strong> (in modalità test).
+                  <br/>3. Vai in "Impostazioni Progetto", aggiungi un'app Web (<code>&lt;/&gt;</code>) e copia la configurazione <code>const firebaseConfig = &#123;...&#125;</code>.
+                  <br/>4. Incolla qui sotto solo la parte tra parentesi graffe <code>&#123; ... &#125;</code>.
                 </p>
              </div>
              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Firebase Configuration (JSON)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Firebase Configuration</label>
                 <textarea
                   value={firebaseConfig}
                   onChange={(e) => setFirebaseConfig(e.target.value)}
-                  placeholder='{ "apiKey": "...", "authDomain": "...", "projectId": "..." }'
-                  rows={6}
+                  placeholder={'{ \n  apiKey: "AIza...", \n  authDomain: "...", \n  projectId: "..." \n}'}
+                  rows={8}
                   className="w-full px-4 py-3 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-pink-500 font-mono bg-gray-50"
                 />
+                {error && <p className="text-red-500 text-xs mt-2 font-bold">{error}</p>}
              </div>
           </div>
 
