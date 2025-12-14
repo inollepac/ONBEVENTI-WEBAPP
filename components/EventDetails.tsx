@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { 
   addAttendee, togglePaymentStatus, deleteAttendee, 
-  deleteEvent, addExpense, deleteExpense, updateAttendee, generateId
+  deleteEvent, addExpense, deleteExpense, updateAttendee, updateExpense, generateId
 } from '../services/storageService';
 
 interface EventDetailsProps {
@@ -33,6 +33,10 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, onBack, onUpd
 
   // State for new Expense
   const [newExpense, setNewExpense] = useState({ description: '', amount: '' });
+  
+  // State for editing Expense
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  const [editExpenseData, setEditExpenseData] = useState({ description: '', amount: '' });
 
   // --- CONFIRMATION MODAL STATE ---
   const [confirmModal, setConfirmModal] = useState<{
@@ -174,7 +178,7 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, onBack, onUpd
     }
   };
 
-  // --- EXPENSE ADD LOGIC ---
+  // --- EXPENSE LOGIC ---
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -191,6 +195,40 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, onBack, onUpd
         onUpdate(updated);
         setNewExpense({ description: '', amount: '' });
         setShowAddExpense(false);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startEditingExpense = (expense: Expense) => {
+    setEditingExpenseId(expense.id);
+    setEditExpenseData({ 
+      description: expense.description, 
+      amount: expense.amount.toString() 
+    });
+  };
+
+  const cancelEditingExpense = () => {
+    setEditingExpenseId(null);
+    setEditExpenseData({ description: '', amount: '' });
+  };
+
+  const saveEditedExpense = async (originalExpense: Expense) => {
+    if (!editExpenseData.description || !editExpenseData.amount) return;
+
+    const updatedExpense: Expense = {
+      ...originalExpense,
+      description: editExpenseData.description,
+      amount: Number(editExpenseData.amount)
+    };
+    
+    setLoading(true);
+    try {
+      const updatedEvent = await updateExpense(event.id, updatedExpense);
+      if (updatedEvent) {
+        onUpdate(updatedEvent);
+        setEditingExpenseId(null);
       }
     } finally {
       setLoading(false);
@@ -421,28 +459,75 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, onBack, onUpd
               {(!event.expenses || event.expenses.length === 0) ? (
                  <p className="p-6 text-center text-sm text-gray-400">Nessuna spesa registrata.</p>
               ) : (
-                event.expenses.map(exp => (
-                  <div key={exp.id} className="p-4 flex justify-between items-center hover:bg-gray-50 group transition-colors">
-                    <div>
-                      <p className="text-sm font-semibold text-gray-800">{exp.description}</p>
+                event.expenses.map(exp => {
+                  const isEditing = editingExpenseId === exp.id;
+                  
+                  return (
+                    <div key={exp.id} className={`p-4 flex flex-col sm:flex-row justify-between sm:items-center gap-2 group transition-colors ${isEditing ? 'bg-indigo-50/50' : 'hover:bg-gray-50'}`}>
+                      {isEditing ? (
+                        <>
+                           <div className="flex-1 flex flex-col gap-2">
+                              <input 
+                                className="w-full border border-pink-300 rounded-md text-sm px-3 py-1.5 bg-white focus:ring-2 focus:ring-pink-500"
+                                value={editExpenseData.description}
+                                onChange={e => setEditExpenseData(prev => ({...prev, description: e.target.value}))}
+                                placeholder="Descrizione"
+                                autoFocus
+                              />
+                              <input 
+                                className="w-full sm:w-32 border border-pink-300 rounded-md text-sm px-3 py-1.5 bg-white focus:ring-2 focus:ring-pink-500"
+                                value={editExpenseData.amount}
+                                onChange={e => setEditExpenseData(prev => ({...prev, amount: e.target.value}))}
+                                placeholder="Importo"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                              />
+                           </div>
+                           <div className="flex gap-2 justify-end sm:self-center">
+                              <button onClick={() => saveEditedExpense(exp)} className="text-white bg-green-500 hover:bg-green-600 p-1.5 rounded-lg shadow-sm transition-all" title="Salva" type="button" disabled={loading}>
+                                <Save className="w-4 h-4" />
+                              </button>
+                              <button onClick={cancelEditingExpense} className="text-white bg-gray-400 hover:bg-gray-500 p-1.5 rounded-lg shadow-sm transition-all" title="Annulla" type="button" disabled={loading}>
+                                <X className="w-4 h-4" />
+                              </button>
+                           </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex-1 min-w-0 mr-2">
+                            <p className="text-sm font-semibold text-gray-800 break-words">{exp.description}</p>
+                          </div>
+                          <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
+                            <p className="text-sm font-bold text-red-500 bg-red-50 px-2 py-1 rounded whitespace-nowrap">- €{exp.amount}</p>
+                            <div className="flex gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button 
+                                onClick={() => startEditingExpense(exp)}
+                                className="p-1.5 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all"
+                                title="Modifica Spesa"
+                                type="button"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  requestDeleteExpense(exp.id);
+                                }}
+                                className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                                title="Elimina Spesa"
+                                type="button"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
-                    <div className="flex items-center gap-4">
-                      <p className="text-sm font-bold text-red-500 bg-red-50 px-2 py-1 rounded">- €{exp.amount}</p>
-                      <button 
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          requestDeleteExpense(exp.id);
-                        }}
-                        className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
-                        title="Elimina Spesa"
-                        type="button"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
             {event.expenses && event.expenses.length > 0 && (

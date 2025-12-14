@@ -178,6 +178,18 @@ export const addExpense = async (eventId: string, expense: Expense): Promise<App
   });
 };
 
+export const updateExpense = async (eventId: string, updatedExpense: Expense): Promise<AppEvent | null> => {
+  return updateSingleEvent(eventId, (event) => {
+    if (event.expenses) {
+      const index = event.expenses.findIndex(e => e.id === updatedExpense.id);
+      if (index !== -1) {
+        event.expenses[index] = updatedExpense;
+      }
+    }
+    return event;
+  });
+};
+
 export const deleteExpense = async (eventId: string, expenseId: string): Promise<AppEvent | null> => {
   return updateSingleEvent(eventId, (event) => {
     if (event.expenses) {
