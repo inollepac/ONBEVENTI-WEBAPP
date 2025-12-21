@@ -6,6 +6,20 @@ const STORAGE_KEY = 'onbeventi_data_v1';
 const EXTRA_EXPENSES_KEY = 'onbeventi_extra_expenses_v1';
 const FIREBASE_CONFIG_KEY = 'onbeventi_firebase_config';
 
+// Utility per rimuovere campi undefined che mandano in crash Firebase
+const cleanForFirebase = (obj: any): any => {
+  if (Array.isArray(obj)) {
+    return obj.map(cleanForFirebase);
+  } else if (obj !== null && typeof obj === 'object') {
+    return Object.fromEntries(
+      Object.entries(obj)
+        .filter(([_, v]) => v !== undefined)
+        .map(([k, v]) => [k, cleanForFirebase(v)])
+    );
+  }
+  return obj;
+};
+
 const getDb = () => {
   const configStr = localStorage.getItem(FIREBASE_CONFIG_KEY);
   if (!configStr) return null;
@@ -32,13 +46,15 @@ export const getEvents = async (): Promise<AppEvent[]> => {
       const events: AppEvent[] = [];
       querySnapshot.forEach((doc) => { 
         const data = doc.data() as AppEvent;
-        // Assicuriamoci che gli array esistano sempre
         data.attendees = data.attendees || [];
         data.expenses = data.expenses || [];
         events.push(data); 
       });
       return events;
-    } catch (e) { return []; }
+    } catch (e) { 
+      console.error("Firebase fetch error", e);
+      return []; 
+    }
   } else {
     const data = localStorage.getItem(STORAGE_KEY);
     const events: AppEvent[] = data ? JSON.parse(data) : [];
@@ -52,11 +68,12 @@ export const getEvents = async (): Promise<AppEvent[]> => {
 
 export const saveEvent = async (event: AppEvent): Promise<void> => {
   const db = getDb();
-  const eventToSave = {
+  const eventToSave = cleanForFirebase({
     ...event,
     attendees: event.attendees || [],
     expenses: event.expenses || []
-  };
+  });
+  
   if (db) {
     await setDoc(doc(db, "events", event.id), eventToSave);
   } else {
@@ -96,7 +113,7 @@ export const getExtraExpenses = async (): Promise<ExtraExpense[]> => {
 export const saveExtraExpense = async (expense: ExtraExpense): Promise<void> => {
   const db = getDb();
   if (db) {
-    await setDoc(doc(db, "extra_expenses", expense.id), expense);
+    await setDoc(doc(db, "extra_expenses", expense.id), cleanForFirebase(expense));
   } else {
     const list = await getExtraExpenses();
     list.push(expense);
@@ -124,7 +141,7 @@ const updateSingleEvent = async (eventId: string, updateFn: (event: AppEvent) =>
       const event = docSnap.data() as AppEvent;
       event.attendees = event.attendees || [];
       event.expenses = event.expenses || [];
-      const updatedEvent = updateFn(event);
+      const updatedEvent = cleanForFirebase(updateFn(event));
       await setDoc(docRef, updatedEvent);
       return updatedEvent;
     }
@@ -136,7 +153,7 @@ const updateSingleEvent = async (eventId: string, updateFn: (event: AppEvent) =>
     const event = events[idx];
     event.attendees = event.attendees || [];
     event.expenses = event.expenses || [];
-    const updated = updateFn(event);
+    const updated = cleanForFirebase(updateFn(event));
     events[idx] = updated;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
     return updated;

@@ -1,8 +1,6 @@
-
 import { GoogleGenAI } from "@google/genai";
 
 export const generateEventDescription = async (title: string, mood: string): Promise<string> => {
-  // Cerca la chiave prima nel salvataggio locale (impostazioni utente), poi nelle variabili d'ambiente
   const apiKey = localStorage.getItem('onbeventi_api_key') || process.env.API_KEY;
 
   if (!apiKey) {
@@ -10,7 +8,6 @@ export const generateEventDescription = async (title: string, mood: string): Pro
   }
 
   try {
-    // Inizializza l'AI ogni volta per essere sicuri di usare la chiave più recente
     const ai = new GoogleGenAI({ apiKey });
 
     const prompt = `
@@ -22,7 +19,7 @@ export const generateEventDescription = async (title: string, mood: string): Pro
     `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: prompt,
     });
 
