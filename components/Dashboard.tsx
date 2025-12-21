@@ -30,9 +30,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onC
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     // GLOBAL STATS (All time)
+    // Calcolo preciso dell'incasso sommando le quote reali di ogni partecipante pagante
     const totalRevenue = events.reduce((acc, curr) => {
-      const paidAttendees = curr.attendees.filter(a => a.status === PaymentStatus.PAID).length;
-      return acc + (paidAttendees * curr.cost);
+      const eventRevenue = curr.attendees.reduce((sum, a) => {
+        if (a.status === PaymentStatus.PAID) {
+          return sum + (a.paidAmount !== undefined ? a.paidAmount : curr.cost);
+        }
+        return sum;
+      }, 0);
+      return acc + eventRevenue;
     }, 0);
 
     const totalEventExpenses = events.reduce((acc, curr) => {
@@ -101,7 +107,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onC
             </div>
           </div>
           <div className="text-right min-w-[80px]">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Costo</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Costo Base</p>
             <p className="text-lg font-bold text-pink-600">€ {event.cost}</p>
           </div>
           <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-pink-100 group-hover:text-pink-600 transition-colors">

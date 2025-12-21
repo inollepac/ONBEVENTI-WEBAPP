@@ -11,6 +11,7 @@ export interface Attendee {
   phone?: string;
   status: PaymentStatus;
   registrationDate: string;
+  paidAmount?: number; // Quota effettivamente pagata (se diversa dal costo evento)
 }
 
 export interface Expense {
