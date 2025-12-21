@@ -1,31 +1,116 @@
-import React, { useMemo } from 'react';
-import { AppEvent, PaymentStatus } from '../types';
-import { Calendar, DollarSign, Users, Plus, ArrowRight, MapPin, Clock, Ticket } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { AppEvent, ExtraExpense, PaymentStatus } from '../types';
+import { Calendar, DollarSign, Users, Plus, ArrowRight, MapPin, Clock, Ticket, TrendingDown, Wallet, History, Receipt, Trash2, Save } from 'lucide-react';
 import { Button } from './Button';
+import { generateId, saveExtraExpense, deleteExtraExpense } from '../services/storageService';
 
 interface DashboardProps {
   events: AppEvent[];
+  extraExpenses: ExtraExpense[];
   onCreateClick: () => void;
   onEventClick: (id: string) => void;
+  onRefresh: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ events, onCreateClick, onEventClick }) => {
-  
+export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onCreateClick, onEventClick, onRefresh }) => {
+  const [showAddExtra, setShowAddExtra] = useState(false);
+  const [newExtra, setNewExtra] = useState({ description: '', amount: '' });
+  const [loading, setLoading] = useState(false);
+
   const stats = useMemo(() => {
-    const totalEvents = events.length;
-    const totalAttendees = events.reduce((acc, curr) => acc + curr.attendees.length, 0);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    const upcoming = events
+      .filter(e => new Date(e.date) >= today)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    const past = events
+      .filter(e => new Date(e.date) < today)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    // GLOBAL STATS (All time)
     const totalRevenue = events.reduce((acc, curr) => {
       const paidAttendees = curr.attendees.filter(a => a.status === PaymentStatus.PAID).length;
       return acc + (paidAttendees * curr.cost);
     }, 0);
-    
-    // Sort events by date (nearest first)
-    const upcoming = [...events]
-      .filter(e => new Date(e.date) >= new Date(new Date().setHours(0,0,0,0)))
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    return { totalEvents, totalAttendees, totalRevenue, upcoming };
-  }, [events]);
+    const totalEventExpenses = events.reduce((acc, curr) => {
+      return acc + (curr.expenses || []).reduce((sum, exp) => sum + exp.amount, 0);
+    }, 0);
+
+    const totalExtraExpenses = extraExpenses.reduce((acc, curr) => acc + curr.amount, 0);
+    const totalExpenses = totalEventExpenses + totalExtraExpenses;
+    const totalProfit = totalRevenue - totalExpenses;
+
+    return { upcoming, past, totalRevenue, totalExpenses, totalProfit };
+  }, [events, extraExpenses]);
+
+  const handleAddExtra = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newExtra.description || !newExtra.amount) return;
+    setLoading(true);
+    try {
+      await saveExtraExpense({
+        id: generateId(),
+        description: newExtra.description,
+        amount: Number(newExtra.amount),
+        date: new Date().toISOString()
+      });
+      setNewExtra({ description: '', amount: '' });
+      setShowAddExtra(false);
+      onRefresh();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveExtra = async (id: string) => {
+    if (!confirm("Eliminare questa spesa extra?")) return;
+    await deleteExtraExpense(id);
+    onRefresh();
+  };
+
+  const renderEventItem = (event: AppEvent) => (
+    <div 
+      key={event.id} 
+      className="p-6 hover:bg-gray-50 transition-all cursor-pointer group border-l-4 border-transparent hover:border-pink-500" 
+      onClick={() => onEventClick(event.id)}
+    >
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div className="flex items-start gap-4 flex-1">
+          <div className="hidden md:flex flex-col items-center justify-center w-16 h-16 bg-indigo-50 rounded-2xl border border-indigo-100 text-indigo-900 shrink-0">
+            <span className="text-xs font-bold uppercase">{new Date(event.date).toLocaleDateString('it-IT', { month: 'short' })}</span>
+            <span className="text-2xl font-bold">{new Date(event.date).getDate()}</span>
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-gray-900 group-hover:text-pink-600 transition-colors">{event.title}</h3>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-2 text-sm text-gray-500">
+              <span className="flex items-center"><Calendar className="w-4 h-4 mr-1.5 text-gray-400"/> {new Date(event.date).toLocaleDateString('it-IT')}</span>
+              <span className="flex items-center"><Clock className="w-4 h-4 mr-1.5 text-gray-400"/> {event.time}</span>
+              <span className="flex items-center"><MapPin className="w-4 h-4 mr-1.5 text-gray-400"/> {event.location}</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-8 w-full md:w-auto justify-between md:justify-end">
+          <div className="text-right">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Partecipanti</p>
+            <div className="flex items-center justify-end gap-1">
+              <Users className="w-4 h-4 text-gray-400" />
+              <p className="text-lg font-bold text-gray-900">{event.attendees.length}</p>
+            </div>
+          </div>
+          <div className="text-right min-w-[80px]">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Costo</p>
+            <p className="text-lg font-bold text-pink-600">€ {event.cost}</p>
+          </div>
+          <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-pink-100 group-hover:text-pink-600 transition-colors">
+            <ArrowRight className="w-4 h-4" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -33,8 +118,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, onCreateClick, onE
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-pink-100 to-yellow-100 rounded-full blur-3xl opacity-50 -mr-16 -mt-16 pointer-events-none"></div>
         <div className="relative z-10">
-          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Dashboard <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">ONBEVENTI</span></h1>
-          <p className="text-gray-500 mt-1">Panoramica completa delle tue attività e performance.</p>
+          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Gestione <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">ONBEVENTI</span></h1>
+          <p className="text-gray-500 mt-1">Benvenuto! Ecco il resoconto globale della tua organizzazione.</p>
         </div>
         <div className="relative z-10">
           <Button onClick={onCreateClick} className="shadow-lg shadow-pink-200">
@@ -44,119 +129,156 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, onCreateClick, onE
         </div>
       </div>
 
-      {/* Stats Cards - Modernized with gradients/accents */}
+      {/* Global Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Eventi Card */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative group overflow-hidden transition-all hover:shadow-md">
-          <div className="absolute right-0 top-0 w-24 h-24 bg-indigo-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-          <div className="relative flex flex-col h-full justify-between">
-            <div className="p-3 bg-indigo-100 w-fit rounded-xl text-indigo-700 mb-4">
-              <Calendar className="w-6 h-6" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500 font-semibold uppercase tracking-wider">Eventi Attivi</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalEvents}</p>
-            </div>
-          </div>
-        </div>
-        
-        {/* Incasso Card - Brand Pink Accent */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative group overflow-hidden transition-all hover:shadow-md">
-           <div className="absolute right-0 top-0 w-24 h-24 bg-pink-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-           <div className="relative flex flex-col h-full justify-between">
-            <div className="p-3 bg-pink-100 w-fit rounded-xl text-pink-600 mb-4">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
+           <div className="absolute top-0 right-0 w-20 h-20 bg-green-50 rounded-bl-full -mr-4 -mt-4"></div>
+           <div className="relative">
+            <div className="p-3 bg-green-100 w-fit rounded-xl text-green-600 mb-4 shadow-sm">
               <DollarSign className="w-6 h-6" />
             </div>
-            <div>
-              <p className="text-sm text-gray-500 font-semibold uppercase tracking-wider">Incasso Totale</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">€ {stats.totalRevenue.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
-            </div>
+            <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Incasso Globale</p>
+            <p className="text-3xl font-black text-gray-900 mt-1">€ {stats.totalRevenue.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
           </div>
         </div>
 
-        {/* Iscritti Card - Brand Yellow Accent */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative group overflow-hidden transition-all hover:shadow-md">
-          <div className="absolute right-0 top-0 w-24 h-24 bg-yellow-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
-          <div className="relative flex flex-col h-full justify-between">
-            <div className="p-3 bg-yellow-100 w-fit rounded-xl text-yellow-700 mb-4">
-              <Users className="w-6 h-6" />
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
+           <div className="absolute top-0 right-0 w-20 h-20 bg-red-50 rounded-bl-full -mr-4 -mt-4"></div>
+           <div className="relative">
+            <div className="p-3 bg-red-100 w-fit rounded-xl text-red-600 mb-4 shadow-sm">
+              <TrendingDown className="w-6 h-6" />
             </div>
-            <div>
-              <p className="text-sm text-gray-500 font-semibold uppercase tracking-wider">Iscritti Totali</p>
-              <p className="text-3xl font-bold text-gray-900 mt-1">{stats.totalAttendees}</p>
+            <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Uscite Totali</p>
+            <p className="text-3xl font-black text-gray-900 mt-1">€ {stats.totalExpenses.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
+          </div>
+        </div>
+
+        <div className="bg-indigo-950 p-6 rounded-2xl shadow-xl border border-indigo-900 relative overflow-hidden">
+           <div className="absolute top-0 right-0 w-32 h-32 bg-pink-500/20 rounded-bl-full -mr-8 -mt-8 blur-xl"></div>
+           <div className="relative">
+            <div className="p-3 bg-white/10 w-fit rounded-xl text-pink-400 mb-4 shadow-inner">
+              <Wallet className="w-6 h-6" />
             </div>
+            <p className="text-xs text-indigo-300 font-bold uppercase tracking-wider">Profitto Netto Globale</p>
+            <p className="text-3xl font-black text-white mt-1">€ {stats.totalProfit.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
           </div>
         </div>
       </div>
 
-      {/* Upcoming Events List */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center backdrop-blur-sm">
-          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-            <Ticket className="w-5 h-5 text-pink-500" />
-            Prossimi Eventi
-          </h2>
-          <span className="text-xs font-bold bg-indigo-900 text-white px-3 py-1 rounded-full shadow-sm">
-            {stats.upcoming.length} in programma
-          </span>
-        </div>
-        
-        {stats.upcoming.length === 0 ? (
-          <div className="p-12 text-center flex flex-col items-center justify-center text-gray-500">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-              <Calendar className="w-8 h-8 text-gray-400" />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left/Main: Events */}
+        <div className="lg:col-span-2 space-y-8">
+          {/* Upcoming Events */}
+          <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+              <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <Ticket className="w-5 h-5 text-pink-500" />
+                Prossimi Eventi
+              </h2>
             </div>
-            <p className="text-lg font-medium">Nessun evento in programma</p>
-            <p className="text-sm mt-1">Clicca su "Nuovo Evento" per iniziare!</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-100">
-            {stats.upcoming.map(event => (
-              <div 
-                key={event.id} 
-                className="p-6 hover:bg-gray-50 transition-all cursor-pointer group border-l-4 border-transparent hover:border-pink-500" 
-                onClick={() => onEventClick(event.id)}
-              >
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                  {/* Left: Date Box & Info */}
-                  <div className="flex items-start gap-4 flex-1">
-                    <div className="hidden md:flex flex-col items-center justify-center w-16 h-16 bg-indigo-50 rounded-2xl border border-indigo-100 text-indigo-900 shrink-0">
-                      <span className="text-xs font-bold uppercase">{new Date(event.date).toLocaleDateString('it-IT', { month: 'short' })}</span>
-                      <span className="text-2xl font-bold">{new Date(event.date).getDate()}</span>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900 group-hover:text-pink-600 transition-colors">{event.title}</h3>
-                      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-2 text-sm text-gray-500">
-                        <span className="flex items-center md:hidden"><Calendar className="w-4 h-4 mr-1.5 text-gray-400"/> {new Date(event.date).toLocaleDateString('it-IT')}</span>
-                        <span className="flex items-center"><Clock className="w-4 h-4 mr-1.5 text-gray-400"/> {event.time}</span>
-                        <span className="flex items-center"><MapPin className="w-4 h-4 mr-1.5 text-gray-400"/> {event.location}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right: Stats & Arrow */}
-                  <div className="flex items-center gap-8 w-full md:w-auto justify-between md:justify-end">
-                    <div className="text-right">
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Partecipanti</p>
-                      <div className="flex items-center justify-end gap-1">
-                        <Users className="w-4 h-4 text-gray-400" />
-                        <p className="text-lg font-bold text-gray-900">{event.attendees.length}</p>
-                      </div>
-                    </div>
-                    <div className="text-right min-w-[80px]">
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Costo</p>
-                      <p className="text-lg font-bold text-pink-600">€ {event.cost}</p>
-                    </div>
-                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-pink-100 group-hover:text-pink-600 transition-colors">
-                      <ArrowRight className="w-4 h-4" />
-                    </div>
-                  </div>
-                </div>
+            {stats.upcoming.length === 0 ? (
+              <div className="p-12 text-center text-gray-400">Nessun evento in programma.</div>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {stats.upcoming.map(renderEventItem)}
               </div>
-            ))}
-          </div>
-        )}
+            )}
+          </section>
+
+          {/* Past Events */}
+          <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden opacity-90">
+            <div className="px-6 py-5 border-b border-gray-100 bg-indigo-50/30 flex justify-between items-center">
+              <h2 className="text-lg font-bold text-gray-600 flex items-center gap-2">
+                <History className="w-5 h-5 text-indigo-400" />
+                Eventi Passati
+              </h2>
+            </div>
+            {stats.past.length === 0 ? (
+              <div className="p-8 text-center text-gray-400 text-sm italic">Nessun evento passato registrato.</div>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {stats.past.map(renderEventItem)}
+              </div>
+            )}
+          </section>
+        </div>
+
+        {/* Right Column: Extra Expenses */}
+        <div className="space-y-8">
+          <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="px-6 py-5 border-b border-gray-100 bg-red-50/30 flex justify-between items-center">
+              <h2 className="text-md font-bold text-gray-800 flex items-center gap-2">
+                <Receipt className="w-5 h-5 text-red-500" />
+                Spese Extra
+              </h2>
+              <button 
+                onClick={() => setShowAddExtra(!showAddExtra)}
+                className="text-[10px] bg-red-600 text-white px-2 py-1 rounded-full font-bold uppercase hover:bg-red-700 transition-colors"
+              >
+                {showAddExtra ? 'Chiudi' : 'Aggiungi'}
+              </button>
+            </div>
+
+            {showAddExtra && (
+              <div className="p-4 bg-red-50/50 border-b border-red-100 animate-slide-down">
+                <form onSubmit={handleAddExtra} className="space-y-3">
+                   <input 
+                    className="w-full text-xs px-3 py-2 rounded-lg border-gray-200 focus:ring-2 focus:ring-red-500"
+                    placeholder="Descrizione (es. Affitto Ufficio)"
+                    value={newExtra.description}
+                    onChange={e => setNewExtra(p => ({...p, description: e.target.value}))}
+                    required
+                   />
+                   <div className="flex gap-2">
+                    <input 
+                      type="number"
+                      step="0.01"
+                      className="w-full text-xs px-3 py-2 rounded-lg border-gray-200 focus:ring-2 focus:ring-red-500"
+                      placeholder="Importo (€)"
+                      value={newExtra.amount}
+                      onChange={e => setNewExtra(p => ({...p, amount: e.target.value}))}
+                      required
+                    />
+                    <button type="submit" disabled={loading} className="bg-indigo-900 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-sm">
+                      <Save className="w-3 h-3" />
+                    </button>
+                   </div>
+                </form>
+              </div>
+            )}
+
+            <div className="max-h-[500px] overflow-y-auto">
+              {extraExpenses.length === 0 ? (
+                <p className="p-6 text-center text-xs text-gray-400 italic">Nessuna spesa extra registrata.</p>
+              ) : (
+                <div className="divide-y divide-gray-50">
+                  {extraExpenses.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(exp => (
+                    <div key={exp.id} className="p-4 group hover:bg-gray-50 flex justify-between items-center">
+                      <div>
+                        <p className="text-xs font-bold text-gray-800">{exp.description}</p>
+                        <p className="text-[10px] text-gray-400">{new Date(exp.date).toLocaleDateString()}</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-black text-red-600">- €{exp.amount.toFixed(2)}</span>
+                        <button 
+                          onClick={() => handleRemoveExtra(exp.id)}
+                          className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-600 transition-all"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {extraExpenses.length > 0 && (
+              <div className="p-3 bg-gray-50 text-right text-[10px] font-bold text-gray-500 uppercase">
+                Totale: <span className="text-red-600">€ {extraExpenses.reduce((a,b)=>a+b.amount,0).toFixed(2)}</span>
+              </div>
+            )}
+          </section>
+        </div>
       </div>
     </div>
   );

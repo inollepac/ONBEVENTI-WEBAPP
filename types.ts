@@ -19,6 +19,13 @@ export interface Expense {
   amount: number;
 }
 
+export interface ExtraExpense {
+  id: string;
+  description: string;
+  amount: number;
+  date: string;
+}
+
 export interface AppEvent {
   id: string;
   title: string;
@@ -38,4 +45,5 @@ export type ViewState =
   | { type: 'CREATE_EVENT' }
   | { type: 'EDIT_EVENT'; eventId: string }
   | { type: 'EVENT_DETAILS'; eventId: string }
-  | { type: 'SETTINGS' };
+  | { type: 'SETTINGS' }
+  | { type: 'PARTICIPANTS' };
