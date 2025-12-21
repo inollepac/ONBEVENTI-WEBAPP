@@ -55,8 +55,8 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
   // --- SUGGESTIONS LOGIC ---
   const globalParticipants = useMemo(() => {
     const map = new Map<string, Attendee>();
-    allEvents.forEach(ev => {
-      ev.attendees.forEach(at => {
+    (allEvents || []).forEach(ev => {
+      (ev.attendees || []).forEach(at => {
         const key = (at.email || at.phone || at.name).toLowerCase().trim();
         map.set(key, at);
       });
@@ -81,7 +81,7 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
       name: p.name,
       email: p.email || '',
       phone: p.phone || '',
-      paidAmount: '' // Reset override per suggerimento, usa quello dell'evento corrente di default
+      paidAmount: '' 
     });
     setSuggestions([]);
   };
@@ -90,9 +90,11 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
 
   const handleAddAttendee = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newAttendee.name.trim()) return;
+    
     setLoading(true);
     
-    if (event.maxAttendees && event.attendees.length >= event.maxAttendees) {
+    if (event.maxAttendees && (event.attendees || []).length >= event.maxAttendees) {
       alert("Numero massimo di partecipanti raggiunto.");
       setLoading(false);
       return;
@@ -116,6 +118,9 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
         setShowAddAttendee(false);
         setSuggestions([]);
       }
+    } catch (err) {
+      console.error("Error adding attendee:", err);
+      alert("Si è verificato un errore durante l'aggiunta.");
     } finally {
       setLoading(false);
     }
@@ -230,17 +235,20 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
   };
 
   // --- CALCULATIONS ---
-  const totalCollected = event.attendees.reduce((acc, a) => {
+  const attendees = event.attendees || [];
+  const expenses = event.expenses || [];
+  
+  const totalCollected = attendees.reduce((acc, a) => {
     if (a.status === PaymentStatus.PAID) {
       return acc + (a.paidAmount !== undefined ? a.paidAmount : event.cost);
     }
     return acc;
   }, 0);
 
-  const totalExpenses = (event.expenses || []).reduce((acc, curr) => acc + curr.amount, 0);
+  const totalExpenses = expenses.reduce((acc, curr) => acc + curr.amount, 0);
   const netProfit = totalCollected - totalExpenses;
   const isProfitPositive = netProfit >= 0;
-  const occupancyPercentage = event.maxAttendees ? Math.min((event.attendees.length / event.maxAttendees) * 100, 100) : 0;
+  const occupancyPercentage = event.maxAttendees ? Math.min((attendees.length / event.maxAttendees) * 100, 100) : 0;
 
   return (
     <div className="space-y-8 animate-fade-in pb-10 relative">
@@ -326,7 +334,7 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
               <div className="pt-4">
                 <div className="flex justify-between text-xs font-bold text-gray-500 uppercase mb-2"><span>Occupazione</span><span>{event.maxAttendees ? Math.round(occupancyPercentage) : 100}%</span></div>
                 <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden"><div className="h-3 rounded-full bg-gradient-to-r from-pink-500 to-yellow-400 shadow-sm transition-all duration-500" style={{ width: `${event.maxAttendees ? occupancyPercentage : 100}%` }}></div></div>
-                <p className="text-xs text-center mt-2 text-gray-400">{event.attendees.length} iscritti su {event.maxAttendees ? event.maxAttendees : 'illimitati'}</p>
+                <p className="text-xs text-center mt-2 text-gray-400">{attendees.length} iscritti su {event.maxAttendees ? event.maxAttendees : 'illimitati'}</p>
               </div>
             </div>
           </div>
@@ -345,8 +353,8 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
               </div>
             )}
             <div className="divide-y divide-gray-100">
-              {(!event.expenses || event.expenses.length === 0) ? (<p className="p-6 text-center text-sm text-gray-400">Nessuna spesa registrata.</p>) : (
-                event.expenses.map(exp => {
+              {expenses.length === 0 ? (<p className="p-6 text-center text-sm text-gray-400">Nessuna spesa registrata.</p>) : (
+                expenses.map(exp => {
                   const isEditing = editingExpenseId === exp.id;
                   return (
                     <div key={exp.id} className={`p-4 flex flex-col sm:flex-row justify-between sm:items-center gap-2 group transition-colors ${isEditing ? 'bg-indigo-50/50' : 'hover:bg-gray-50'}`}>
@@ -371,7 +379,7 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full overflow-hidden">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white">
               <div className="flex items-center gap-3"><div className="p-2 bg-pink-100 text-pink-600 rounded-lg"><Users className="w-5 h-5" /></div><div><h2 className="font-bold text-gray-900 text-lg">Lista Iscritti</h2><p className="text-xs text-gray-500">Gestisci partecipazioni e quote eccezionali</p></div></div>
-              <Button onClick={() => setShowAddAttendee(!showAddAttendee)} variant="primary" className="text-xs" disabled={!!event.maxAttendees && event.attendees.length >= event.maxAttendees} type="button"><UserPlus className="w-4 h-4 mr-2" /> Aggiungi</Button>
+              <Button onClick={() => setShowAddAttendee(!showAddAttendee)} variant="primary" className="text-xs" disabled={!!event.maxAttendees && attendees.length >= event.maxAttendees} type="button"><UserPlus className="w-4 h-4 mr-2" /> Aggiungi</Button>
             </div>
 
             {showAddAttendee && (
@@ -410,10 +418,10 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {event.attendees.length === 0 ? (
+                  {attendees.length === 0 ? (
                     <tr><td colSpan={5} className="px-6 py-16 text-center text-gray-400">La lista è vuota</td></tr>
                   ) : (
-                    event.attendees.map(attendee => {
+                    attendees.map(attendee => {
                       const isEditing = editingAttendeeId === attendee.id;
                       const hasCustomAmount = attendee.paidAmount !== undefined && attendee.paidAmount !== event.cost;
                       const displayAmount = attendee.paidAmount !== undefined ? attendee.paidAmount : event.cost;

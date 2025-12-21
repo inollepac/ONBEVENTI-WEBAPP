@@ -30,23 +30,39 @@ export const getEvents = async (): Promise<AppEvent[]> => {
     try {
       const querySnapshot = await getDocs(collection(db, "events"));
       const events: AppEvent[] = [];
-      querySnapshot.forEach((doc) => { events.push(doc.data() as AppEvent); });
+      querySnapshot.forEach((doc) => { 
+        const data = doc.data() as AppEvent;
+        // Assicuriamoci che gli array esistano sempre
+        data.attendees = data.attendees || [];
+        data.expenses = data.expenses || [];
+        events.push(data); 
+      });
       return events;
     } catch (e) { return []; }
   } else {
     const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
+    const events: AppEvent[] = data ? JSON.parse(data) : [];
+    return events.map(e => ({
+      ...e,
+      attendees: e.attendees || [],
+      expenses: e.expenses || []
+    }));
   }
 };
 
 export const saveEvent = async (event: AppEvent): Promise<void> => {
   const db = getDb();
+  const eventToSave = {
+    ...event,
+    attendees: event.attendees || [],
+    expenses: event.expenses || []
+  };
   if (db) {
-    await setDoc(doc(db, "events", event.id), event);
+    await setDoc(doc(db, "events", event.id), eventToSave);
   } else {
     const events = (await getEvents());
     const idx = events.findIndex(e => e.id === event.id);
-    if (idx >= 0) events[idx] = event; else events.push(event);
+    if (idx >= 0) events[idx] = eventToSave; else events.push(eventToSave);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
   }
 };
@@ -106,6 +122,8 @@ const updateSingleEvent = async (eventId: string, updateFn: (event: AppEvent) =>
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
       const event = docSnap.data() as AppEvent;
+      event.attendees = event.attendees || [];
+      event.expenses = event.expenses || [];
       const updatedEvent = updateFn(event);
       await setDoc(docRef, updatedEvent);
       return updatedEvent;
@@ -115,7 +133,10 @@ const updateSingleEvent = async (eventId: string, updateFn: (event: AppEvent) =>
     const events = (await getEvents());
     const idx = events.findIndex(e => e.id === eventId);
     if (idx === -1) return null;
-    const updated = updateFn(events[idx]);
+    const event = events[idx];
+    event.attendees = event.attendees || [];
+    event.expenses = event.expenses || [];
+    const updated = updateFn(event);
     events[idx] = updated;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
     return updated;
@@ -124,6 +145,7 @@ const updateSingleEvent = async (eventId: string, updateFn: (event: AppEvent) =>
 
 export const addAttendee = async (eventId: string, attendee: Attendee): Promise<AppEvent | null> => {
   return updateSingleEvent(eventId, (event) => {
+    event.attendees = event.attendees || [];
     event.attendees.push(attendee);
     return event;
   });
@@ -131,6 +153,7 @@ export const addAttendee = async (eventId: string, attendee: Attendee): Promise<
 
 export const updateAttendee = async (eventId: string, updatedAttendee: Attendee): Promise<AppEvent | null> => {
   return updateSingleEvent(eventId, (event) => {
+    event.attendees = event.attendees || [];
     const index = event.attendees.findIndex(a => a.id === updatedAttendee.id);
     if (index !== -1) event.attendees[index] = updatedAttendee;
     return event;
@@ -139,6 +162,7 @@ export const updateAttendee = async (eventId: string, updatedAttendee: Attendee)
 
 export const togglePaymentStatus = async (eventId: string, attendeeId: string): Promise<AppEvent | null> => {
   return updateSingleEvent(eventId, (event) => {
+    event.attendees = event.attendees || [];
     const index = event.attendees.findIndex(a => a.id === attendeeId);
     if (index !== -1) {
       event.attendees[index].status = event.attendees[index].status === PaymentStatus.PAID ? PaymentStatus.PENDING : PaymentStatus.PAID;
@@ -149,14 +173,14 @@ export const togglePaymentStatus = async (eventId: string, attendeeId: string): 
 
 export const deleteAttendee = async (eventId: string, attendeeId: string): Promise<AppEvent | null> => {
   return updateSingleEvent(eventId, (event) => {
-    event.attendees = event.attendees.filter(a => a.id !== attendeeId);
+    event.attendees = (event.attendees || []).filter(a => a.id !== attendeeId);
     return event;
   });
 };
 
 export const addExpense = async (eventId: string, expense: Expense): Promise<AppEvent | null> => {
   return updateSingleEvent(eventId, (event) => {
-    if (!event.expenses) event.expenses = [];
+    event.expenses = event.expenses || [];
     event.expenses.push(expense);
     return event;
   });
@@ -164,17 +188,16 @@ export const addExpense = async (eventId: string, expense: Expense): Promise<App
 
 export const updateExpense = async (eventId: string, updatedExpense: Expense): Promise<AppEvent | null> => {
   return updateSingleEvent(eventId, (event) => {
-    if (event.expenses) {
-      const index = event.expenses.findIndex(e => e.id === updatedExpense.id);
-      if (index !== -1) event.expenses[index] = updatedExpense;
-    }
+    event.expenses = event.expenses || [];
+    const index = event.expenses.findIndex(e => e.id === updatedExpense.id);
+    if (index !== -1) event.expenses[index] = updatedExpense;
     return event;
   });
 };
 
 export const deleteExpense = async (eventId: string, expenseId: string): Promise<AppEvent | null> => {
   return updateSingleEvent(eventId, (event) => {
-    if (event.expenses) event.expenses = event.expenses.filter(e => e.id !== expenseId);
+    event.expenses = (event.expenses || []).filter(e => e.id !== expenseId);
     return event;
   });
 };
