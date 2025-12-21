@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { ViewState, AppEvent, ExtraExpense } from './types';
 import { getEvents, saveEvent, isCloudEnabled, getExtraExpenses } from './services/storageService';
@@ -6,6 +7,7 @@ import { EventForm } from './components/EventForm';
 import { EventDetails } from './components/EventDetails';
 import { Settings } from './components/Settings';
 import { ParticipantsList } from './components/ParticipantsList';
+import { ParticipantDetails } from './components/ParticipantDetails';
 import { LayoutDashboard, Settings as SettingsIcon, Cloud, CloudOff, RefreshCw, Users } from 'lucide-react';
 
 export default function App() {
@@ -74,7 +76,23 @@ export default function App() {
         );
       
       case 'PARTICIPANTS':
-        return <ParticipantsList events={events} onBack={navigateToDashboard} />;
+        return (
+          <ParticipantsList 
+            events={events} 
+            onBack={navigateToDashboard} 
+            onParticipantClick={(key) => setViewState({ type: 'PARTICIPANT_DETAILS', participantKey: key })}
+          />
+        );
+      
+      case 'PARTICIPANT_DETAILS':
+        return (
+          <ParticipantDetails 
+            participantKey={viewState.participantKey}
+            events={events}
+            onBack={() => setViewState({ type: 'PARTICIPANTS' })}
+            onUpdate={refreshData}
+          />
+        );
       
       case 'CREATE_EVENT':
         return <EventForm onSave={handleEventSaved} onCancel={navigateToDashboard} />;
@@ -114,7 +132,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row font-sans">
-      {/* Sidebar Navigation */}
       <aside className="bg-indigo-950 text-white w-full md:w-64 flex-shrink-0 flex flex-col shadow-2xl z-20 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none opacity-20">
              <div className="absolute top-[-50px] left-[-50px] w-40 h-40 bg-pink-600 rounded-full blur-[60px]"></div>
@@ -140,7 +157,7 @@ export default function App() {
             <button 
               onClick={navigateToDashboard}
               className={`w-full flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 font-medium ${
-                viewState.type === 'DASHBOARD' || viewState.type === 'EVENT_DETAILS' || viewState.type === 'CREATE_EVENT' || viewState.type === 'EDIT_EVENT'
+                ['DASHBOARD', 'EVENT_DETAILS', 'CREATE_EVENT', 'EDIT_EVENT'].includes(viewState.type)
                   ? 'bg-gradient-to-r from-pink-600 to-purple-700 text-white shadow-lg border border-pink-500/30' 
                   : 'text-indigo-200 hover:bg-white/5 hover:text-white border border-transparent'
               }`}
@@ -152,7 +169,7 @@ export default function App() {
             <button 
               onClick={() => setViewState({ type: 'PARTICIPANTS' })}
               className={`w-full flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 font-medium ${
-                viewState.type === 'PARTICIPANTS' 
+                ['PARTICIPANTS', 'PARTICIPANT_DETAILS'].includes(viewState.type)
                   ? 'bg-gradient-to-r from-pink-600 to-purple-700 text-white shadow-lg border border-pink-500/30' 
                   : 'text-indigo-200 hover:bg-white/5 hover:text-white border border-transparent'
               }`}
@@ -191,7 +208,6 @@ export default function App() {
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen bg-slate-50/50">
         <div className="max-w-7xl mx-auto pb-10">
           {renderContent()}

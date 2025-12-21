@@ -1,3 +1,4 @@
+
 import { AppEvent, Attendee, Expense, ExtraExpense, PaymentStatus } from '../types';
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, getDoc, updateDoc } from "firebase/firestore";
@@ -6,7 +7,6 @@ const STORAGE_KEY = 'onbeventi_data_v1';
 const EXTRA_EXPENSES_KEY = 'onbeventi_extra_expenses_v1';
 const FIREBASE_CONFIG_KEY = 'onbeventi_firebase_config';
 
-// Utility per rimuovere campi undefined che mandano in crash Firebase
 const cleanForFirebase = (obj: any): any => {
   if (Array.isArray(obj)) {
     return obj.map(cleanForFirebase);
@@ -37,7 +37,6 @@ export const generateId = (): string => {
   return Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
 };
 
-// --- EVENTS ---
 export const getEvents = async (): Promise<AppEvent[]> => {
   const db = getDb();
   if (db) {
@@ -84,6 +83,27 @@ export const saveEvent = async (event: AppEvent): Promise<void> => {
   }
 };
 
+export const updateParticipantGlobally = async (oldKey: string, newData: { name: string, email: string, phone: string }): Promise<void> => {
+  const events = await getEvents();
+  
+  for (const event of events) {
+    let changed = false;
+    const updatedAttendees = event.attendees.map(a => {
+      const currentKey = (a.email || a.phone || a.name).toLowerCase().trim();
+      if (currentKey === oldKey) {
+        changed = true;
+        return { ...a, ...newData };
+      }
+      return a;
+    });
+
+    if (changed) {
+      const updatedEvent = { ...event, attendees: updatedAttendees };
+      await saveEvent(updatedEvent);
+    }
+  }
+};
+
 export const deleteEvent = async (eventId: string): Promise<void> => {
   const db = getDb();
   if (db) {
@@ -94,7 +114,6 @@ export const deleteEvent = async (eventId: string): Promise<void> => {
   }
 };
 
-// --- EXTRA EXPENSES ---
 export const getExtraExpenses = async (): Promise<ExtraExpense[]> => {
   const db = getDb();
   if (db) {
@@ -131,92 +150,93 @@ export const deleteExtraExpense = async (id: string): Promise<void> => {
   }
 };
 
-// --- HELPERS ---
-const updateSingleEvent = async (eventId: string, updateFn: (event: AppEvent) => AppEvent): Promise<AppEvent | null> => {
-  const db = getDb();
-  if (db) {
-    const docRef = doc(db, "events", eventId);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      const event = docSnap.data() as AppEvent;
-      event.attendees = event.attendees || [];
-      event.expenses = event.expenses || [];
-      const updatedEvent = cleanForFirebase(updateFn(event));
-      await setDoc(docRef, updatedEvent);
-      return updatedEvent;
-    }
-    return null;
-  } else {
-    const events = (await getEvents());
-    const idx = events.findIndex(e => e.id === eventId);
-    if (idx === -1) return null;
-    const event = events[idx];
-    event.attendees = event.attendees || [];
-    event.expenses = event.expenses || [];
-    const updated = cleanForFirebase(updateFn(event));
-    events[idx] = updated;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
-    return updated;
-  }
-};
-
 export const addAttendee = async (eventId: string, attendee: Attendee): Promise<AppEvent | null> => {
-  return updateSingleEvent(eventId, (event) => {
-    event.attendees = event.attendees || [];
-    event.attendees.push(attendee);
-    return event;
-  });
+  const events = await getEvents();
+  const eventIdx = events.findIndex(e => e.id === eventId);
+  if (eventIdx === -1) return null;
+  
+  const event = events[eventIdx];
+  event.attendees.push(attendee);
+  await saveEvent(event);
+  return event;
 };
 
 export const updateAttendee = async (eventId: string, updatedAttendee: Attendee): Promise<AppEvent | null> => {
-  return updateSingleEvent(eventId, (event) => {
-    event.attendees = event.attendees || [];
-    const index = event.attendees.findIndex(a => a.id === updatedAttendee.id);
-    if (index !== -1) event.attendees[index] = updatedAttendee;
-    return event;
-  });
+  const events = await getEvents();
+  const eventIdx = events.findIndex(e => e.id === eventId);
+  if (eventIdx === -1) return null;
+  
+  const event = events[eventIdx];
+  const attendeeIdx = event.attendees.findIndex(a => a.id === updatedAttendee.id);
+  if (attendeeIdx !== -1) {
+    event.attendees[attendeeIdx] = updatedAttendee;
+    await saveEvent(event);
+  }
+  return event;
 };
 
 export const togglePaymentStatus = async (eventId: string, attendeeId: string): Promise<AppEvent | null> => {
-  return updateSingleEvent(eventId, (event) => {
-    event.attendees = event.attendees || [];
-    const index = event.attendees.findIndex(a => a.id === attendeeId);
-    if (index !== -1) {
-      event.attendees[index].status = event.attendees[index].status === PaymentStatus.PAID ? PaymentStatus.PENDING : PaymentStatus.PAID;
-    }
-    return event;
-  });
+  const events = await getEvents();
+  const eventIdx = events.findIndex(e => e.id === eventId);
+  if (eventIdx === -1) return null;
+  
+  const event = events[eventIdx];
+  const attendeeIdx = event.attendees.findIndex(a => a.id === attendeeId);
+  if (attendeeIdx !== -1) {
+    event.attendees[attendeeIdx].status = 
+      event.attendees[attendeeIdx].status === PaymentStatus.PAID 
+        ? PaymentStatus.PENDING 
+        : PaymentStatus.PAID;
+    await saveEvent(event);
+  }
+  return event;
 };
 
 export const deleteAttendee = async (eventId: string, attendeeId: string): Promise<AppEvent | null> => {
-  return updateSingleEvent(eventId, (event) => {
-    event.attendees = (event.attendees || []).filter(a => a.id !== attendeeId);
-    return event;
-  });
+  const events = await getEvents();
+  const eventIdx = events.findIndex(e => e.id === eventId);
+  if (eventIdx === -1) return null;
+  
+  const event = events[eventIdx];
+  event.attendees = event.attendees.filter(a => a.id !== attendeeId);
+  await saveEvent(event);
+  return event;
 };
 
 export const addExpense = async (eventId: string, expense: Expense): Promise<AppEvent | null> => {
-  return updateSingleEvent(eventId, (event) => {
-    event.expenses = event.expenses || [];
-    event.expenses.push(expense);
-    return event;
-  });
+  const events = await getEvents();
+  const eventIdx = events.findIndex(e => e.id === eventId);
+  if (eventIdx === -1) return null;
+  
+  const event = events[eventIdx];
+  event.expenses.push(expense);
+  await saveEvent(event);
+  return event;
 };
 
 export const updateExpense = async (eventId: string, updatedExpense: Expense): Promise<AppEvent | null> => {
-  return updateSingleEvent(eventId, (event) => {
-    event.expenses = event.expenses || [];
-    const index = event.expenses.findIndex(e => e.id === updatedExpense.id);
-    if (index !== -1) event.expenses[index] = updatedExpense;
-    return event;
-  });
+  const events = await getEvents();
+  const eventIdx = events.findIndex(e => e.id === eventId);
+  if (eventIdx === -1) return null;
+  
+  const event = events[eventIdx];
+  const expenseIdx = event.expenses.findIndex(e => e.id === updatedExpense.id);
+  if (expenseIdx !== -1) {
+    event.expenses[expenseIdx] = updatedExpense;
+    await saveEvent(event);
+  }
+  return event;
 };
 
 export const deleteExpense = async (eventId: string, expenseId: string): Promise<AppEvent | null> => {
-  return updateSingleEvent(eventId, (event) => {
-    event.expenses = (event.expenses || []).filter(e => e.id !== expenseId);
-    return event;
-  });
+  const events = await getEvents();
+  const eventIdx = events.findIndex(e => e.id === eventId);
+  if (eventIdx === -1) return null;
+  
+  const event = events[eventIdx];
+  event.expenses = event.expenses.filter(e => e.id !== expenseId);
+  await saveEvent(event);
+  return event;
 };
 
 export const isCloudEnabled = (): boolean => !!localStorage.getItem(FIREBASE_CONFIG_KEY);
