@@ -1,4 +1,3 @@
-
 import { AppEvent, Attendee, Expense, ExtraExpense, PaymentStatus } from '../types';
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, getDoc, updateDoc } from "firebase/firestore";
@@ -7,6 +6,7 @@ const STORAGE_KEY = 'onbeventi_data_v1';
 const EXTRA_EXPENSES_KEY = 'onbeventi_extra_expenses_v1';
 const FIREBASE_CONFIG_KEY = 'onbeventi_firebase_config';
 
+// Utility per rimuovere campi undefined che mandano in crash Firebase
 const cleanForFirebase = (obj: any): any => {
   if (Array.isArray(obj)) {
     return obj.map(cleanForFirebase);
@@ -37,6 +37,7 @@ export const generateId = (): string => {
   return Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
 };
 
+// --- EVENTS ---
 export const getEvents = async (): Promise<AppEvent[]> => {
   const db = getDb();
   if (db) {
@@ -93,29 +94,7 @@ export const deleteEvent = async (eventId: string): Promise<void> => {
   }
 };
 
-export const updateParticipantGlobally = async (oldKey: string, newData: { name: string, email: string, phone: string }): Promise<void> => {
-  const events = await getEvents();
-  const updatedEvents: AppEvent[] = [];
-
-  for (const event of events) {
-    let changed = false;
-    const updatedAttendees = event.attendees.map(a => {
-      const currentKey = (a.email || a.phone || a.name).toLowerCase().trim();
-      if (currentKey === oldKey) {
-        changed = true;
-        return { ...a, ...newData };
-      }
-      return a;
-    });
-
-    if (changed) {
-      const updatedEvent = { ...event, attendees: updatedAttendees };
-      await saveEvent(updatedEvent);
-      updatedEvents.push(updatedEvent);
-    }
-  }
-};
-
+// --- EXTRA EXPENSES ---
 export const getExtraExpenses = async (): Promise<ExtraExpense[]> => {
   const db = getDb();
   if (db) {
@@ -152,6 +131,7 @@ export const deleteExtraExpense = async (id: string): Promise<void> => {
   }
 };
 
+// --- HELPERS ---
 const updateSingleEvent = async (eventId: string, updateFn: (event: AppEvent) => AppEvent): Promise<AppEvent | null> => {
   const db = getDb();
   if (db) {

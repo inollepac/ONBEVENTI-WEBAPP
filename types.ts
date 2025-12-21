@@ -47,5 +47,4 @@ export type ViewState =
   | { type: 'EDIT_EVENT'; eventId: string }
   | { type: 'EVENT_DETAILS'; eventId: string }
   | { type: 'SETTINGS' }
-  | { type: 'PARTICIPANTS' }
-  | { type: 'PARTICIPANT_DETAILS'; participantKey: string };
+  | { type: 'PARTICIPANTS' };

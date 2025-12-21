@@ -1,27 +1,27 @@
 
 import React, { useState, useMemo } from 'react';
 import { AppEvent, Attendee } from '../types';
-import { Users, Search, Mail, Phone, ArrowLeft, SortAsc, SortDesc } from 'lucide-react';
+import { Users, Search, Mail, Phone, Calendar, ArrowLeft, SortAsc, SortDesc, Filter } from 'lucide-react';
 
 interface ParticipantsListProps {
   events: AppEvent[];
   onBack: () => void;
-  onParticipantClick: (key: string) => void;
 }
 
 type SortKey = 'name' | 'eventsCount';
 type SortOrder = 'asc' | 'desc';
 
-export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBack, onParticipantClick }) => {
+export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBack }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
   const globalAttendees = useMemo(() => {
-    const map = new Map<string, { attendee: Attendee, eventsCount: number, eventTitles: string[], key: string }>();
+    const map = new Map<string, { attendee: Attendee, eventsCount: number, eventTitles: string[] }>();
 
     (events || []).forEach(event => {
       (event.attendees || []).forEach(a => {
+        // Usiamo email o cellulare o nome per identificare univocamente una persona
         const key = (a.email || a.phone || a.name).toLowerCase().trim();
         
         if (map.has(key)) {
@@ -32,8 +32,7 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
           map.set(key, {
             attendee: a,
             eventsCount: 1,
-            eventTitles: [event.title],
-            key: key
+            eventTitles: [event.title]
           });
         }
       });
@@ -41,6 +40,7 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
 
     let list = Array.from(map.values());
     
+    // Filtering
     if (searchTerm) {
       const lowerSearch = searchTerm.toLowerCase();
       list = list.filter(item => 
@@ -50,6 +50,7 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
       );
     }
 
+    // Sorting
     list.sort((a, b) => {
       if (sortKey === 'name') {
         const comparison = a.attendee.name.localeCompare(b.attendee.name);
@@ -68,7 +69,7 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     } else {
       setSortKey(key);
-      setSortOrder(key === 'eventsCount' ? 'desc' : 'asc');
+      setSortOrder(key === 'eventsCount' ? 'desc' : 'asc'); // Default decrescente per eventi, crescente per nome
     }
   };
 
@@ -119,18 +120,26 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
           <table className="w-full text-left">
             <thead>
               <tr className="bg-indigo-950 text-white text-[11px] font-bold uppercase tracking-wider">
-                <th className="px-6 py-4 cursor-pointer hover:bg-indigo-900 transition-colors" onClick={() => toggleSort('name')}>
+                <th 
+                  className="px-6 py-4 cursor-pointer hover:bg-indigo-900 transition-colors"
+                  onClick={() => toggleSort('name')}
+                >
                   <div className="flex items-center gap-2">
-                    Partecipante {sortKey === 'name' && (sortOrder === 'asc' ? <SortAsc className="w-3 h-3 opacity-60" /> : <SortDesc className="w-3 h-3 opacity-60" />)}
+                    Partecipante
+                    {sortKey === 'name' && (sortOrder === 'asc' ? <SortAsc className="w-3 h-3 opacity-60" /> : <SortDesc className="w-3 h-3 opacity-60" />)}
                   </div>
                 </th>
                 <th className="px-6 py-4">Contatti</th>
-                <th className="px-6 py-4 text-center cursor-pointer hover:bg-indigo-900 transition-colors" onClick={() => toggleSort('eventsCount')}>
+                <th 
+                  className="px-6 py-4 text-center cursor-pointer hover:bg-indigo-900 transition-colors"
+                  onClick={() => toggleSort('eventsCount')}
+                >
                   <div className="flex items-center justify-center gap-2">
-                    Eventi Totali {sortKey === 'eventsCount' && (sortOrder === 'asc' ? <SortAsc className="w-3 h-3 opacity-60" /> : <SortDesc className="w-3 h-3 opacity-60" />)}
+                    Eventi Totali
+                    {sortKey === 'eventsCount' && (sortOrder === 'asc' ? <SortAsc className="w-3 h-3 opacity-60" /> : <SortDesc className="w-3 h-3 opacity-60" />)}
                   </div>
                 </th>
-                <th className="px-6 py-4">Ultimi Eventi</th>
+                <th className="px-6 py-4">Eventi a cui ha partecipato</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -145,14 +154,10 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
                 </tr>
               ) : (
                 globalAttendees.map((item, idx) => (
-                  <tr 
-                    key={idx} 
-                    className="hover:bg-pink-50/30 transition-colors group cursor-pointer"
-                    onClick={() => onParticipantClick(item.key)}
-                  >
+                  <tr key={idx} className="hover:bg-gray-50 transition-colors group">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-pink-100 to-indigo-100 text-pink-700 flex items-center justify-center font-bold text-sm shadow-sm group-hover:scale-110 transition-transform">
+                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-pink-100 to-indigo-100 text-pink-700 flex items-center justify-center font-bold text-sm shadow-sm">
                           {item.attendee.name.charAt(0).toUpperCase()}
                         </div>
                         <span className="font-bold text-gray-900 group-hover:text-pink-600 transition-colors">{item.attendee.name}</span>
@@ -179,11 +184,16 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-wrap gap-1.5 max-w-sm">
-                        {item.eventTitles.slice(-2).map((t, i) => (
+                        {item.eventTitles.slice(-3).map((t, i) => (
                           <span key={i} className="text-[10px] bg-white text-gray-600 px-2.5 py-1 rounded-md border border-gray-200 shadow-sm">
                             {t}
                           </span>
                         ))}
+                        {item.eventTitles.length > 3 && (
+                          <span className="text-[10px] font-bold text-indigo-400 px-1 pt-1">
+                            +{item.eventTitles.length - 3} altri
+                          </span>
+                        )}
                       </div>
                     </td>
                   </tr>
