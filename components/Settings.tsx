@@ -30,7 +30,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
     setError(null);
 
     if (Number(vipThreshold) <= Number(regularThreshold)) {
-      setError("La soglia VIP deve essere superiore alla soglia Cliente Fedele.");
+      setError("La soglia VIP deve essere superiore alla soglia Membro Fedele.");
       return;
     }
 
@@ -107,17 +107,17 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
                     onChange={e => setVipThreshold(e.target.value)} 
                     className="w-full px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-pink-500 outline-none transition-all" 
                   />
-                  <p className="text-[10px] text-gray-400 mt-2">Applica il badge "VIP Platinum" ai partecipanti con questo numero di presenze.</p>
+                  <p className="text-[10px] text-gray-400 mt-2">Badge "VIP Platinum" assegnato ai membri con questo numero di presenze.</p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                  <label className="block text-xs font-black text-gray-500 uppercase mb-2">Soglia Fedele (Presenze)</label>
+                  <label className="block text-xs font-black text-gray-500 uppercase mb-2">Soglia Fedeltà (Presenze)</label>
                   <input 
                     type="number" 
                     value={regularThreshold} 
                     onChange={e => setRegularThreshold(e.target.value)} 
                     className="w-full px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-pink-500 outline-none transition-all" 
                   />
-                  <p className="text-[10px] text-gray-400 mt-2">Applica il badge "Cliente Fedele" ai partecipanti regolari.</p>
+                  <p className="text-[10px] text-gray-400 mt-2">Badge "Membro Fedele" assegnato ai membri più regolari.</p>
                 </div>
              </div>
           </div>
@@ -133,7 +133,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
                placeholder='{ "apiKey": "...", "projectId": "...", ... }'
                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-pink-500 outline-none transition-all" 
              />
-             <p className="text-xs text-gray-400">Incolla qui l'oggetto di configurazione del tuo progetto Firebase per sincronizzare i dati su tutti i tuoi dispositivi.</p>
+             <p className="text-xs text-gray-400">Incolla qui l'oggetto di configurazione del tuo progetto Firebase per sincronizzare i dati della tua community.</p>
           </div>
 
           <div className="flex items-center justify-between pt-4">

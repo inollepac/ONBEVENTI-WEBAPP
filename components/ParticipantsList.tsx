@@ -97,8 +97,8 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
             <ArrowLeft className="w-5 h-5 text-gray-500" />
           </button>
           <div>
-            <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Anagrafica Partecipanti</h1>
-            <p className="text-sm text-gray-500">Gestisci i tuoi contatti e identifica i clienti VIP.</p>
+            <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">Anagrafica Membri</h1>
+            <p className="text-sm text-gray-500">Gestisci i contatti della tua community e identifica i membri VIP.</p>
           </div>
         </div>
         
@@ -138,13 +138,13 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
               <tr className="bg-indigo-950 text-white text-[11px] font-bold uppercase tracking-wider">
                 <th className="px-6 py-4 cursor-pointer hover:bg-indigo-900 transition-colors" onClick={() => toggleSort('name')}>
                   <div className="flex items-center gap-2">
-                    Partecipante {sortKey === 'name' && (sortOrder === 'asc' ? <SortAsc className="w-3 h-3 opacity-60" /> : <SortDesc className="w-3 h-3 opacity-60" />)}
+                    Membro {sortKey === 'name' && (sortOrder === 'asc' ? <SortAsc className="w-3 h-3 opacity-60" /> : <SortDesc className="w-3 h-3 opacity-60" />)}
                   </div>
                 </th>
                 <th className="px-6 py-4">Contatti</th>
                 <th className="px-6 py-4 text-center cursor-pointer hover:bg-indigo-900 transition-colors" onClick={() => toggleSort('eventsCount')}>
                   <div className="flex items-center justify-center gap-2">
-                    Eventi Totali {sortKey === 'eventsCount' && (sortOrder === 'asc' ? <SortAsc className="w-3 h-3 opacity-60" /> : <SortDesc className="w-3 h-3 opacity-60" />)}
+                    Partecipazioni {sortKey === 'eventsCount' && (sortOrder === 'asc' ? <SortAsc className="w-3 h-3 opacity-60" /> : <SortDesc className="w-3 h-3 opacity-60" />)}
                   </div>
                 </th>
                 <th className="px-6 py-4">Ultimi Eventi</th>
@@ -156,7 +156,7 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
                   <td colSpan={4} className="px-6 py-24 text-center text-gray-400 italic">
                     <div className="flex flex-col items-center gap-3">
                       <div className="p-4 bg-gray-50 rounded-full"><Users className="w-8 h-8 opacity-20" /></div>
-                      <p>Nessun partecipante trovato.</p>
+                      <p>Nessun membro trovato.</p>
                     </div>
                   </td>
                 </tr>
@@ -189,12 +189,12 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
                             )}
                             {item.isRegular && (
                               <span className="inline-flex items-center bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border border-green-200">
-                                <Star className="w-2.5 h-2.5 mr-1" /> FEDELE
+                                <Star className="w-2.5 h-2.5 mr-1" /> MEMBRO FEDELE
                               </span>
                             )}
                           </div>
                           {item.eventsCount >= vipThreshold && (
-                            <span className="text-[9px] text-yellow-600/70 font-bold uppercase tracking-tighter">Miglior Cliente</span>
+                            <span className="text-[9px] text-yellow-600/70 font-bold uppercase tracking-tighter">Miglior Membro</span>
                           )}
                         </div>
                       </div>

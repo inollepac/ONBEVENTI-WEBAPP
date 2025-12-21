@@ -113,7 +113,7 @@ END:VCARD`;
       <div className="p-12 text-center">
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 max-w-md mx-auto">
           <User className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-          <p className="text-gray-500 font-medium">Partecipante non trovato nel database.</p>
+          <p className="text-gray-500 font-medium">Membro non trovato nel database.</p>
           <Button onClick={onBack} variant="secondary" className="mt-4">Torna alla lista</Button>
         </div>
       </div>
@@ -132,8 +132,8 @@ END:VCARD`;
             <ArrowLeft className="w-5 h-5 text-gray-500" />
           </button>
           <div>
-            <h1 className="text-2xl font-black text-gray-900 leading-tight">Dettagli Partecipante</h1>
-            <p className="text-xs text-indigo-500 font-bold uppercase tracking-wider">ONBEVENTI CRM System</p>
+            <h1 className="text-2xl font-black text-gray-900 leading-tight">Profilo Membro</h1>
+            <p className="text-xs text-indigo-500 font-bold uppercase tracking-wider">ONBEVENTI Community System</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -143,14 +143,14 @@ END:VCARD`;
                  <Download className="w-4 h-4 mr-2" /> VCard
                </Button>
                <Button onClick={() => setIsEditing(true)}>
-                 <Edit2 className="w-4 h-4 mr-2" /> Modifica Anagrafica
+                 <Edit2 className="w-4 h-4 mr-2" /> Modifica Dati
                </Button>
              </>
            ) : (
              <div className="flex gap-2">
                 <Button variant="ghost" onClick={() => setIsEditing(false)}>Annulla</Button>
                 <Button onClick={handleSave} isLoading={loading}>
-                   <Save className="w-4 h-4 mr-2" /> Salva Globale
+                   <Save className="w-4 h-4 mr-2" /> Aggiorna Ovunque
                 </Button>
              </div>
            )}
@@ -212,7 +212,7 @@ END:VCARD`;
                     </span>
                   ) : isRegular ? (
                     <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-sm">
-                      Cliente Fedele
+                      Membro Fedele
                     </span>
                   ) : (
                     <span className="bg-gray-100 text-gray-500 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-sm">
@@ -289,7 +289,7 @@ END:VCARD`;
             <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
               <h3 className="font-black text-gray-900 flex items-center gap-2">
                 <History className="w-5 h-5 text-pink-500" />
-                Cronologia Partecipazioni
+                Storico Partecipazioni
               </h3>
             </div>
             
@@ -307,7 +307,7 @@ END:VCARD`;
                   {data.history.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="px-6 py-12 text-center text-gray-400 italic">
-                        Nessun evento registrato per questo utente.
+                        Nessuna attività registrata per questo membro.
                       </td>
                     </tr>
                   ) : (
