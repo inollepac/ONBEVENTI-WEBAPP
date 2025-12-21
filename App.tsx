@@ -96,6 +96,7 @@ export default function App() {
         return (
           <EventDetails 
             event={event} 
+            allEvents={events}
             onBack={navigateToDashboard}
             onUpdate={handleEventUpdated}
             onDelete={navigateToDashboard}

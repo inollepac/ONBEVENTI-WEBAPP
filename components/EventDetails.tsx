@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { AppEvent, Attendee, Expense, PaymentStatus } from '../types';
 import { Button } from './Button';
 import { 
   ArrowLeft, UserPlus, CheckCircle, XCircle, Trash2, 
   Calendar, MapPin, Euro, Clock, Edit2, Plus, 
-  TrendingUp, TrendingDown, Wallet, Users, Save, X, AlertTriangle, Phone, Mail
+  TrendingUp, TrendingDown, Wallet, Users, Save, X, AlertTriangle, Phone, Mail, UserCheck
 } from 'lucide-react';
 import { 
   addAttendee, togglePaymentStatus, deleteAttendee, 
@@ -13,19 +13,21 @@ import {
 
 interface EventDetailsProps {
   event: AppEvent;
+  allEvents: AppEvent[]; // Added to provide context for suggestions
   onBack: () => void;
   onUpdate: (updatedEvent: AppEvent) => void;
   onDelete: () => void;
   onEditEvent: () => void;
 }
 
-export const EventDetails: React.FC<EventDetailsProps> = ({ event, onBack, onUpdate, onDelete, onEditEvent }) => {
+export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, onBack, onUpdate, onDelete, onEditEvent }) => {
   const [showAddAttendee, setShowAddAttendee] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [loading, setLoading] = useState(false);
   
   // State for new Attendee
   const [newAttendee, setNewAttendee] = useState({ name: '', email: '', phone: '' });
+  const [suggestions, setSuggestions] = useState<Attendee[]>([]);
   
   // State for editing Attendee
   const [editingAttendeeId, setEditingAttendeeId] = useState<string | null>(null);
@@ -49,6 +51,40 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, onBack, onUpd
     type: null,
     message: ''
   });
+
+  // --- SUGGESTIONS LOGIC ---
+  const globalParticipants = useMemo(() => {
+    const map = new Map<string, Attendee>();
+    allEvents.forEach(ev => {
+      ev.attendees.forEach(at => {
+        const key = (at.email || at.phone || at.name).toLowerCase().trim();
+        // Keep the most recent or any instance
+        map.set(key, at);
+      });
+    });
+    return Array.from(map.values());
+  }, [allEvents]);
+
+  const handleNameChange = (val: string) => {
+    setNewAttendee(prev => ({ ...prev, name: val }));
+    if (val.length >= 2) {
+      const filtered = globalParticipants.filter(p => 
+        p.name.toLowerCase().includes(val.toLowerCase())
+      ).slice(0, 5); // Limit to top 5 suggestions
+      setSuggestions(filtered);
+    } else {
+      setSuggestions([]);
+    }
+  };
+
+  const selectSuggestion = (p: Attendee) => {
+    setNewAttendee({
+      name: p.name,
+      email: p.email || '',
+      phone: p.phone || ''
+    });
+    setSuggestions([]);
+  };
 
   // --- ATTENDEE LOGIC ---
 
@@ -78,6 +114,7 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, onBack, onUpd
         onUpdate(updated);
         setNewAttendee({ name: '', email: '', phone: '' });
         setShowAddAttendee(false);
+        setSuggestions([]);
       }
     } finally {
       setLoading(false);
@@ -567,17 +604,47 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, onBack, onUpd
             {showAddAttendee && (
               <div className="p-6 bg-gradient-to-r from-indigo-50 to-pink-50 border-b border-pink-100 animate-slide-down">
                 <h4 className="text-sm font-bold text-indigo-900 mb-4 uppercase tracking-wide">Nuovo Partecipante</h4>
-                <form onSubmit={handleAddAttendee} className="space-y-4">
+                <form onSubmit={handleAddAttendee} className="space-y-4 relative">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="w-full">
+                    <div className="w-full relative">
                       <input
                         type="text"
                         required
                         className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500"
                         value={newAttendee.name}
-                        onChange={e => setNewAttendee(prev => ({ ...prev, name: e.target.value }))}
+                        onChange={e => handleNameChange(e.target.value)}
                         placeholder="Nome Cognome *"
+                        autoComplete="off"
                       />
+                      
+                      {/* --- AUTOCOMPLETE DROPDOWN --- */}
+                      {suggestions.length > 0 && (
+                        <div className="absolute z-[70] left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden animate-scale-in">
+                           <div className="px-3 py-1.5 bg-indigo-950 text-[10px] font-bold text-indigo-200 uppercase tracking-widest flex items-center justify-between">
+                              Suggerimenti dallo storico
+                              <UserCheck className="w-3 h-3" />
+                           </div>
+                           <ul className="divide-y divide-gray-50">
+                              {suggestions.map((p, idx) => (
+                                <li key={idx}>
+                                  <button 
+                                    type="button"
+                                    onClick={() => selectSuggestion(p)}
+                                    className="w-full text-left px-4 py-3 hover:bg-pink-50 transition-colors flex items-center justify-between group"
+                                  >
+                                    <div>
+                                      <p className="text-sm font-bold text-gray-900 group-hover:text-pink-600 transition-colors">{p.name}</p>
+                                      <p className="text-[10px] text-gray-500 truncate max-w-[150px]">{p.email || p.phone || 'Nessun contatto salvato'}</p>
+                                    </div>
+                                    <div className="bg-gray-50 group-hover:bg-pink-100 p-1 rounded-md transition-colors">
+                                      <Plus className="w-3 h-3 text-gray-400 group-hover:text-pink-600" />
+                                    </div>
+                                  </button>
+                                </li>
+                              ))}
+                           </ul>
+                        </div>
+                      )}
                     </div>
                     <div className="w-full">
                       <input
