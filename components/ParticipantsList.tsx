@@ -24,7 +24,8 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
   const globalAttendees = useMemo(() => {
     const map = new Map<string, { 
       attendee: Attendee, 
-      eventsCount: number, 
+      eventsCount: number, // Solo presenze effettive
+      totalBookings: number, // Totale prenotazioni (incluse assenze)
       eventTitles: string[], 
       key: string,
       isVip: boolean,
@@ -34,15 +35,20 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
     (events || []).forEach(event => {
       (event.attendees || []).forEach(a => {
         const key = (a.email || a.phone || a.name).toLowerCase().trim();
+        const isPresent = a.isPresent !== false;
         
         if (map.has(key)) {
           const existing = map.get(key)!;
-          existing.eventsCount += 1;
+          existing.totalBookings += 1;
+          if (isPresent) {
+            existing.eventsCount += 1;
+          }
           existing.eventTitles.push(event.title);
         } else {
           map.set(key, {
             attendee: a,
-            eventsCount: 1,
+            eventsCount: isPresent ? 1 : 0,
+            totalBookings: 1,
             eventTitles: [event.title],
             key: key,
             isVip: false, // calcolato dopo
@@ -125,7 +131,7 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
               onClick={() => toggleSort('eventsCount')}
               className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${sortKey === 'eventsCount' ? 'bg-white text-indigo-950 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
             >
-              Eventi {sortKey === 'eventsCount' && (sortOrder === 'asc' ? <SortAsc className="w-3.5 h-3.5" /> : <SortDesc className="w-3.5 h-3.5" />)}
+              Presenze {sortKey === 'eventsCount' && (sortOrder === 'asc' ? <SortAsc className="w-3.5 h-3.5" /> : <SortDesc className="w-3.5 h-3.5" />)}
             </button>
           </div>
         </div>
@@ -144,7 +150,7 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
                 <th className="px-6 py-4">Contatti</th>
                 <th className="px-6 py-4 text-center cursor-pointer hover:bg-indigo-900 transition-colors" onClick={() => toggleSort('eventsCount')}>
                   <div className="flex items-center justify-center gap-2">
-                    Partecipazioni {sortKey === 'eventsCount' && (sortOrder === 'asc' ? <SortAsc className="w-3 h-3 opacity-60" /> : <SortDesc className="w-3 h-3 opacity-60" />)}
+                    Presenze Effettive {sortKey === 'eventsCount' && (sortOrder === 'asc' ? <SortAsc className="w-3 h-3 opacity-60" /> : <SortDesc className="w-3 h-3 opacity-60" />)}
                   </div>
                 </th>
                 <th className="px-6 py-4">Ultimi Eventi</th>
@@ -224,6 +230,9 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
                         }`}>
                           {item.eventsCount}
                         </span>
+                        {item.totalBookings > item.eventsCount && (
+                          <span className="text-[9px] text-gray-400 mt-1">({item.totalBookings} prenotazioni totali)</span>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">

@@ -5,7 +5,7 @@ import { Button } from './Button';
 import { 
   ArrowLeft, Edit2, Save, X, Mail, Phone, Calendar, 
   MessageCircle, ExternalLink, Trophy, History, Wallet, 
-  CheckCircle, Clock, Tag, Briefcase, Download, User
+  CheckCircle, Clock, Tag, Briefcase, Download, User, UserX
 } from 'lucide-react';
 import { updateParticipantGlobally } from '../services/storageService';
 
@@ -19,6 +19,7 @@ interface ParticipantDetailsProps {
 interface ParticipantSummary {
   baseAttendee: Attendee | null;
   totalPaid: number;
+  presenceCount: number; // Solo quando isPresent === true
   history: { event: AppEvent; attendeeData: Attendee }[];
   lastSeen: string | null;
 }
@@ -36,6 +37,7 @@ export const ParticipantDetails: React.FC<ParticipantDetailsProps> = ({ particip
   const data = useMemo<ParticipantSummary>(() => {
     let baseAttendee: Attendee | null = null;
     let totalPaid = 0;
+    let presenceCount = 0;
     const history: { event: AppEvent; attendeeData: Attendee }[] = [];
 
     (events || []).forEach(event => {
@@ -50,13 +52,20 @@ export const ParticipantDetails: React.FC<ParticipantDetailsProps> = ({ particip
         if (attendee.status === PaymentStatus.PAID) {
           totalPaid += (attendee.paidAmount !== undefined ? attendee.paidAmount : event.cost);
         }
+
+        if (attendee.isPresent !== false) {
+          presenceCount += 1;
+        }
       }
     });
 
     history.sort((a, b) => new Date(b.event.date).getTime() - new Date(a.event.date).getTime());
-    const lastSeen = history.length > 0 ? history[0].event.date : null;
+    
+    // Ultima presenza effettiva
+    const lastSeenPresence = history.find(h => h.attendeeData.isPresent !== false);
+    const lastSeen = lastSeenPresence ? lastSeenPresence.event.date : null;
 
-    return { baseAttendee, totalPaid, history, lastSeen };
+    return { baseAttendee, totalPaid, presenceCount, history, lastSeen };
   }, [events, participantKey]);
 
   // Sincronizza il form quando i dati di base cambiano
@@ -95,7 +104,7 @@ FN:${name}
 TEL;TYPE=CELL:${phone}
 EMAIL:${email}
 ORG:ONBEVENTI CRM
-NOTE:Partecipazioni totali: ${data.history.length}
+NOTE:Presenze effettive: ${data.presenceCount}
 END:VCARD`;
     
     const blob = new Blob([vcard], { type: 'text/vcard' });
@@ -120,8 +129,8 @@ END:VCARD`;
     );
   }
 
-  const isVip = data.history.length >= vipThreshold;
-  const isRegular = data.history.length >= regularThreshold;
+  const isVip = data.presenceCount >= vipThreshold;
+  const isRegular = data.presenceCount >= regularThreshold;
 
   return (
     <div className="space-y-8 animate-fade-in pb-12">
@@ -269,18 +278,24 @@ END:VCARD`;
             </div>
             <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-8 h-8 bg-indigo-50 rounded-bl-full group-hover:w-12 group-hover:h-12 transition-all"></div>
-              <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Eventi</p>
-              <p className="text-2xl font-black text-indigo-600">{data.history.length}</p>
+              <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Presenze</p>
+              <p className="text-2xl font-black text-indigo-600">{data.presenceCount}</p>
+              {data.history.length > data.presenceCount && (
+                <p className="text-[9px] text-gray-400">su {data.history.length} prenotazioni</p>
+              )}
             </div>
           </div>
           
-          {data.lastSeen && (
-            <div className="bg-indigo-950 p-6 rounded-3xl text-white shadow-xl relative overflow-hidden">
+          <div className="bg-indigo-950 p-6 rounded-3xl text-white shadow-xl relative overflow-hidden">
                <Calendar className="absolute -bottom-2 -right-2 w-16 h-16 text-white/5" />
-               <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-1">Ultima Presenza</p>
-               <p className="text-lg font-bold">{new Date(data.lastSeen).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+               <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-1">Ultima Presenza Reale</p>
+               <p className="text-lg font-bold">
+                 {data.lastSeen 
+                   ? new Date(data.lastSeen).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })
+                   : 'Nessuna presenza registrata'
+                 }
+               </p>
             </div>
-          )}
         </div>
 
         {/* Colonna Destra: Storico Eventi */}
@@ -289,7 +304,7 @@ END:VCARD`;
             <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
               <h3 className="font-black text-gray-900 flex items-center gap-2">
                 <History className="w-5 h-5 text-pink-500" />
-                Storico Partecipazioni
+                Storico Community
               </h3>
             </div>
             
@@ -298,8 +313,8 @@ END:VCARD`;
                 <thead className="bg-indigo-950 text-white text-[10px] font-bold uppercase tracking-wider">
                   <tr>
                     <th className="px-6 py-4">Evento</th>
-                    <th className="px-6 py-4">Data</th>
-                    <th className="px-6 py-4 text-center">Stato Pagamento</th>
+                    <th className="px-6 py-4">Presenza</th>
+                    <th className="px-6 py-4 text-center">Pagamento</th>
                     <th className="px-6 py-4 text-right">Quota</th>
                   </tr>
                 </thead>
@@ -313,19 +328,30 @@ END:VCARD`;
                   ) : (
                     data.history.map(({ event, attendeeData }) => {
                       const isPaid = attendeeData.status === PaymentStatus.PAID;
+                      const isPresent = attendeeData.isPresent !== false;
                       const amount = attendeeData.paidAmount !== undefined ? attendeeData.paidAmount : event.cost;
                       return (
-                        <tr key={event.id} className="hover:bg-gray-50 transition-colors group">
+                        <tr key={event.id} className={`hover:bg-gray-50 transition-colors group ${!isPresent ? 'bg-gray-50/30' : ''}`}>
                           <td className="px-6 py-4">
                             <div className="flex flex-col">
-                              <span className="font-bold text-gray-900 text-sm group-hover:text-indigo-600 transition-colors">{event.title}</span>
+                              <span className={`font-bold text-gray-900 text-sm group-hover:text-indigo-600 transition-colors ${!isPresent ? 'line-through text-gray-400' : ''}`}>
+                                {event.title}
+                              </span>
                               <div className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5">
-                                <Briefcase className="w-3 h-3" /> {event.location}
+                                <Briefcase className="w-3 h-3" /> {event.location} • {new Date(event.date).toLocaleDateString('it-IT')}
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-xs font-medium text-gray-600">
-                            {new Date(event.date).toLocaleDateString('it-IT')}
+                          <td className="px-6 py-4">
+                            {isPresent ? (
+                              <span className="flex items-center text-green-600 text-[10px] font-black uppercase tracking-wider">
+                                <CheckCircle className="w-3 h-3 mr-1" /> Presente
+                              </span>
+                            ) : (
+                              <span className="flex items-center text-red-400 text-[10px] font-black uppercase tracking-wider">
+                                <UserX className="w-3 h-3 mr-1" /> Assente
+                              </span>
+                            )}
                           </td>
                           <td className="px-6 py-4 text-center">
                             <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider shadow-sm ${
@@ -349,10 +375,10 @@ END:VCARD`;
             <div className="p-6 bg-gray-50 border-t border-gray-100 mt-auto flex justify-between items-center">
               <div className="flex items-center gap-2">
                  <Tag className="w-4 h-4 text-pink-500" />
-                 <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Resoconto Finanziario Personale</span>
+                 <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Resoconto Community Personale</span>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Contributo Reale</p>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Contributo Finanziario Reale</p>
                 <p className="text-xl font-black text-gray-900">€ {data.totalPaid.toFixed(2)}</p>
               </div>
             </div>

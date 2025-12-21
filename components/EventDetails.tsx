@@ -1,10 +1,11 @@
+
 import React, { useState, useMemo } from 'react';
 import { AppEvent, Attendee, Expense, PaymentStatus } from '../types';
 import { Button } from './Button';
 import { 
   ArrowLeft, UserPlus, CheckCircle, XCircle, Trash2, 
   Calendar, MapPin, Euro, Clock, Edit2, Plus, 
-  TrendingUp, TrendingDown, Wallet, Users, Save, X, AlertTriangle, Phone, Mail, UserCheck, Tag
+  TrendingUp, TrendingDown, Wallet, Users, Save, X, AlertTriangle, Phone, Mail, UserCheck, Tag, UserMinus, UserX
 } from 'lucide-react';
 import { 
   addAttendee, togglePaymentStatus, deleteAttendee, 
@@ -107,7 +108,8 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
       phone: newAttendee.phone,
       paidAmount: newAttendee.paidAmount ? Number(newAttendee.paidAmount) : undefined,
       status: PaymentStatus.PENDING,
-      registrationDate: new Date().toISOString()
+      registrationDate: new Date().toISOString(),
+      isPresent: true
     };
     
     try {
@@ -171,9 +173,20 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
     }
   };
 
+  const handleTogglePresence = async (attendee: Attendee) => {
+    setLoading(true);
+    const updatedAttendee = { ...attendee, isPresent: attendee.isPresent === false ? true : false };
+    try {
+      const updatedEvent = await updateAttendee(event.id, updatedAttendee);
+      if (updatedEvent) onUpdate(updatedEvent);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // --- DELETE LOGIC ---
   const requestDeleteAttendee = (attendeeId: string) => {
-    setConfirmModal({ isOpen: true, type: 'DELETE_ATTENDEE', itemId: attendeeId, message: 'Sei sicuro di voler rimuovere questo partecipante dalla lista?' });
+    setConfirmModal({ isOpen: true, type: 'DELETE_ATTENDEE', itemId: attendeeId, message: 'Sei sicuro di voler rimuovere questo membro dalla lista?' });
   };
   const requestDeleteExpense = (expenseId: string) => {
     setConfirmModal({ isOpen: true, type: 'DELETE_EXPENSE', itemId: expenseId, message: 'Sei sicuro di voler eliminare questa voce di spesa?' });
@@ -248,6 +261,8 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
   const totalExpenses = expenses.reduce((acc, curr) => acc + curr.amount, 0);
   const netProfit = totalCollected - totalExpenses;
   const isProfitPositive = netProfit >= 0;
+  
+  // L'occupazione conta tutti gli iscritti (anche se poi assenti, il posto è occupato)
   const occupancyPercentage = event.maxAttendees ? Math.min((attendees.length / event.maxAttendees) * 100, 100) : 0;
 
   return (
@@ -378,7 +393,7 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
         <div className="lg:col-span-2 flex flex-col h-full">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full overflow-hidden">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white">
-              <div className="flex items-center gap-3"><div className="p-2 bg-pink-100 text-pink-600 rounded-lg"><Users className="w-5 h-5" /></div><div><h2 className="font-bold text-gray-900 text-lg">Lista Iscritti</h2><p className="text-xs text-gray-500">Gestisci partecipazioni e quote eccezionali</p></div></div>
+              <div className="flex items-center gap-3"><div className="p-2 bg-pink-100 text-pink-600 rounded-lg"><Users className="w-5 h-5" /></div><div><h2 className="font-bold text-gray-900 text-lg">Lista Membri Iscritti</h2><p className="text-xs text-gray-500">Gestisci partecipazioni, assenze e pagamenti</p></div></div>
               <Button onClick={() => setShowAddAttendee(!showAddAttendee)} variant="primary" className="text-xs" disabled={!!event.maxAttendees && attendees.length >= event.maxAttendees} type="button"><UserPlus className="w-4 h-4 mr-2" /> Aggiungi</Button>
             </div>
 
@@ -399,7 +414,7 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
                     </div>
                     <input type="email" className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm" value={newAttendee.email} onChange={e => setNewAttendee(prev => ({ ...prev, email: e.target.value }))} placeholder="Email" />
                     <input type="tel" className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm" value={newAttendee.phone} onChange={e => setNewAttendee(prev => ({ ...prev, phone: e.target.value }))} placeholder="Telefono" />
-                    <input type="number" step="0.01" className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm font-bold text-pink-600 bg-pink-50" value={newAttendee.paidAmount} onChange={e => setNewAttendee(prev => ({ ...prev, paidAmount: e.target.value }))} placeholder={`Quota eccezionale (Standard: €${event.cost})`} />
+                    <input type="number" step="0.01" className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm font-bold text-pink-600 bg-pink-50" value={newAttendee.paidAmount} onChange={e => setNewAttendee(prev => ({ ...prev, paidAmount: e.target.value }))} placeholder={`Quota (Standard: €${event.cost})`} />
                   </div>
                   <div className="flex justify-end gap-2 pt-2"><Button type="button" variant="ghost" onClick={() => setShowAddAttendee(false)}>Chiudi</Button><Button type="submit" isLoading={loading}>Inserisci in lista</Button></div>
                 </form>
@@ -410,7 +425,7 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="text-xs font-semibold text-gray-300 bg-indigo-950 border-b border-indigo-900">
-                    <th className="px-6 py-4">PARTECIPANTE</th>
+                    <th className="px-6 py-4">MEMBRO</th>
                     <th className="px-6 py-4">CONTATTI</th>
                     <th className="px-6 py-4 text-center">QUOTA PAGATA</th>
                     <th className="px-6 py-4 text-center">STATO</th>
@@ -423,16 +438,18 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
                   ) : (
                     attendees.map(attendee => {
                       const isEditing = editingAttendeeId === attendee.id;
+                      const isAbsent = attendee.isPresent === false;
                       const hasCustomAmount = attendee.paidAmount !== undefined && attendee.paidAmount !== event.cost;
                       const displayAmount = attendee.paidAmount !== undefined ? attendee.paidAmount : event.cost;
                       
                       return (
-                        <tr key={attendee.id} className={`group transition-colors ${isEditing ? 'bg-pink-50' : 'hover:bg-gray-50'}`}>
+                        <tr key={attendee.id} className={`group transition-colors ${isEditing ? 'bg-pink-50' : 'hover:bg-gray-50'} ${isAbsent ? 'opacity-60 grayscale-[0.5]' : ''}`}>
                           <td className="px-6 py-4">
                             {isEditing ? (<input className="w-full border border-pink-300 rounded-md text-sm px-3 py-1.5" value={editAttendeeData.name} onChange={e => setEditAttendeeData(p => ({...p, name: e.target.value}))} />) : (
                               <div className="flex items-center gap-2">
-                                <span className="font-semibold text-gray-900">{attendee.name}</span>
+                                <span className={`font-semibold text-gray-900 ${isAbsent ? 'line-through' : ''}`}>{attendee.name}</span>
                                 {hasCustomAmount && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold uppercase flex items-center gap-0.5"><Tag className="w-2.5 h-2.5" /> Quota Speciale</span>}
+                                {isAbsent && <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-black uppercase tracking-widest border border-red-200">Assente</span>}
                               </div>
                             )}
                           </td>
@@ -461,7 +478,18 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
                             {isEditing ? (
                               <div className="flex justify-end gap-2"><button onClick={() => saveEditedAttendee(attendee)} className="bg-green-500 text-white p-1.5 rounded-lg"><Save className="w-4 h-4" /></button><button onClick={cancelEditingAttendee} className="bg-gray-400 text-white p-1.5 rounded-lg"><X className="w-4 h-4" /></button></div>
                             ) : (
-                              <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => startEditingAttendee(attendee)} className="text-gray-400 hover:text-indigo-600 p-2 rounded-lg" title="Modifica"><Edit2 className="w-4 h-4" /></button><button onClick={() => requestDeleteAttendee(attendee.id)} className="text-gray-400 hover:text-red-600 p-2 rounded-lg" title="Rimuovi"><Trash2 className="w-4 h-4" /></button></div>
+                              <div className="flex justify-end items-center gap-1">
+                                <button 
+                                  onClick={() => handleTogglePresence(attendee)} 
+                                  className={`p-2 rounded-lg transition-all ${isAbsent ? 'text-red-500 bg-red-50 hover:bg-red-100' : 'text-gray-400 hover:text-green-600 hover:bg-green-50'}`}
+                                  title={isAbsent ? "Segna come Presente" : "Segna come Assente"}
+                                >
+                                  {isAbsent ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                                </button>
+                                <div className="w-px h-4 bg-gray-100 mx-1"></div>
+                                <button onClick={() => startEditingAttendee(attendee)} className="text-gray-400 hover:text-indigo-600 p-2 rounded-lg" title="Modifica"><Edit2 className="w-4 h-4" /></button>
+                                <button onClick={() => requestDeleteAttendee(attendee.id)} className="text-gray-400 hover:text-red-600 p-2 rounded-lg" title="Rimuovi"><Trash2 className="w-4 h-4" /></button>
+                              </div>
                             )}
                           </td>
                         </tr>

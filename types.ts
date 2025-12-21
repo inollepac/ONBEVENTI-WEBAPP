@@ -12,6 +12,7 @@ export interface Attendee {
   status: PaymentStatus;
   registrationDate: string;
   paidAmount?: number; // Quota effettivamente pagata (se diversa dal costo evento)
+  isPresent?: boolean; // Se il membro ha effettivamente partecipato (default: true)
 }
 
 export interface Expense {
