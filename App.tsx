@@ -8,7 +8,7 @@ import { EventDetails } from './components/EventDetails';
 import { Settings } from './components/Settings';
 import { ParticipantsList } from './components/ParticipantsList';
 import { ParticipantDetails } from './components/ParticipantDetails';
-import { LayoutDashboard, Settings as SettingsIcon, Cloud, CloudOff, RefreshCw, Users } from 'lucide-react';
+import { LayoutDashboard, Settings as SettingsIcon, Cloud, CloudOff, RefreshCw, Users, AlertTriangle, X } from 'lucide-react';
 
 export default function App() {
   const [viewState, setViewState] = useState<ViewState>({ type: 'DASHBOARD' });
@@ -16,6 +16,7 @@ export default function App() {
   const [extraExpenses, setExtraExpenses] = useState<ExtraExpense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCloud, setIsCloud] = useState(false);
+  const [firebaseError, setFirebaseError] = useState(false);
 
   useEffect(() => {
     refreshData();
@@ -24,6 +25,7 @@ export default function App() {
   const refreshData = async () => {
     setIsLoading(true);
     setIsCloud(isCloudEnabled());
+    setFirebaseError(false);
     try {
       const [eventsData, expensesData] = await Promise.all([
         getEvents(),
@@ -31,8 +33,11 @@ export default function App() {
       ]);
       setEvents(eventsData);
       setExtraExpenses(expensesData);
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to load data", e);
+      if (e.message === 'FIREBASE_PERMISSION_DENIED') {
+        setFirebaseError(true);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -45,9 +50,14 @@ export default function App() {
 
   const handleEventSaved = async (event: AppEvent) => {
     setIsLoading(true);
-    await saveEvent(event);
-    setViewState({ type: 'EVENT_DETAILS', eventId: event.id });
-    await refreshData();
+    try {
+      await saveEvent(event);
+      setViewState({ type: 'EVENT_DETAILS', eventId: event.id });
+      await refreshData();
+    } catch (e: any) {
+      if (e.message === 'FIREBASE_PERMISSION_DENIED') setFirebaseError(true);
+      setIsLoading(false);
+    }
   };
 
   const handleEventUpdated = async (updatedEvent: AppEvent) => {
@@ -131,7 +141,17 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row font-sans">
+    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row font-sans relative">
+      {/* Banner Errore Firebase */}
+      {firebaseError && (
+        <div className="fixed top-0 left-0 right-0 z-[100] bg-red-600 text-white p-3 shadow-2xl flex items-center justify-center gap-4 animate-slide-down">
+          <AlertTriangle className="w-5 h-5 shrink-0" />
+          <p className="text-sm font-bold">Accesso al Cloud scaduto: i tuoi dati sono protetti ma bloccati. Vai in <b>Impostazioni</b> per risolvere.</p>
+          <button onClick={() => setViewState({type: 'SETTINGS'})} className="bg-white text-red-600 px-3 py-1 rounded-lg text-xs font-black uppercase">Risolvi</button>
+          <button onClick={() => setFirebaseError(false)} className="p-1 hover:bg-black/10 rounded-full"><X className="w-4 h-4" /></button>
+        </div>
+      )}
+
       <aside className="bg-indigo-950 text-white w-full md:w-64 flex-shrink-0 flex flex-col shadow-2xl z-20 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none opacity-20">
              <div className="absolute top-[-50px] left-[-50px] w-40 h-40 bg-pink-600 rounded-full blur-[60px]"></div>
@@ -175,7 +195,7 @@ export default function App() {
               }`}
             >
               <Users className="w-5 h-5 mr-3" />
-              Partecipanti
+              Membri
             </button>
             
             <button 
@@ -196,10 +216,10 @@ export default function App() {
           <div className="bg-indigo-900/40 border border-indigo-800/50 rounded-xl p-4 backdrop-blur-sm">
             <div className="flex items-center justify-between mb-2">
                <p className="text-[10px] text-indigo-300 font-bold uppercase tracking-wider">Sync Status</p>
-               {isCloud ? <Cloud className="w-3 h-3 text-green-400" /> : <CloudOff className="w-3 h-3 text-gray-400" />}
+               {isCloud ? <Cloud className={`w-3 h-3 ${firebaseError ? 'text-red-500 animate-pulse' : 'text-green-400'}`} /> : <CloudOff className="w-3 h-3 text-gray-400" />}
             </div>
             <div className="text-[10px] text-indigo-200 font-medium flex items-center justify-between">
-               {isCloud ? 'Cloud Sync' : 'Local Only'}
+               {isCloud ? (firebaseError ? 'Errore Permessi' : 'Cloud Sync') : 'Local Only'}
                <button onClick={refreshData} className="hover:text-white transition-colors">
                  <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
                </button>

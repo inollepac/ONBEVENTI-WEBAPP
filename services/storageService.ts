@@ -50,8 +50,11 @@ export const getEvents = async (): Promise<AppEvent[]> => {
         events.push(data); 
       });
       return events;
-    } catch (e) { 
+    } catch (e: any) { 
       console.error("Firebase fetch error", e);
+      if (e.code === 'permission-denied') {
+        throw new Error('FIREBASE_PERMISSION_DENIED');
+      }
       return []; 
     }
   } else {
@@ -74,13 +77,98 @@ export const saveEvent = async (event: AppEvent): Promise<void> => {
   });
   
   if (db) {
-    await setDoc(doc(db, "events", event.id), eventToSave);
+    try {
+      await setDoc(doc(db, "events", event.id), eventToSave);
+    } catch (e: any) {
+      if (e.code === 'permission-denied') throw new Error('FIREBASE_PERMISSION_DENIED');
+      throw e;
+    }
   } else {
     const events = (await getEvents());
     const idx = events.findIndex(e => e.id === event.id);
     if (idx >= 0) events[idx] = eventToSave; else events.push(eventToSave);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
   }
+};
+
+// Fix: Implementation of missing event management functions for attendees and expenses
+
+export const addAttendee = async (eventId: string, attendee: Attendee): Promise<AppEvent | null> => {
+  const events = await getEvents();
+  const event = events.find(e => e.id === eventId);
+  if (!event) return null;
+  
+  event.attendees = [...(event.attendees || []), attendee];
+  await saveEvent(event);
+  return event;
+};
+
+export const updateAttendee = async (eventId: string, attendee: Attendee): Promise<AppEvent | null> => {
+  const events = await getEvents();
+  const event = events.find(e => e.id === eventId);
+  if (!event) return null;
+  
+  event.attendees = (event.attendees || []).map(a => a.id === attendee.id ? attendee : a);
+  await saveEvent(event);
+  return event;
+};
+
+export const deleteAttendee = async (eventId: string, attendeeId: string): Promise<AppEvent | null> => {
+  const events = await getEvents();
+  const event = events.find(e => e.id === eventId);
+  if (!event) return null;
+  
+  event.attendees = (event.attendees || []).filter(a => a.id !== attendeeId);
+  await saveEvent(event);
+  return event;
+};
+
+export const togglePaymentStatus = async (eventId: string, attendeeId: string): Promise<AppEvent | null> => {
+  const events = await getEvents();
+  const event = events.find(e => e.id === eventId);
+  if (!event) return null;
+  
+  event.attendees = (event.attendees || []).map(a => {
+    if (a.id === attendeeId) {
+      return { 
+        ...a, 
+        status: a.status === PaymentStatus.PAID ? PaymentStatus.PENDING : PaymentStatus.PAID 
+      };
+    }
+    return a;
+  });
+  await saveEvent(event);
+  return event;
+};
+
+export const addExpense = async (eventId: string, expense: Expense): Promise<AppEvent | null> => {
+  const events = await getEvents();
+  const event = events.find(e => e.id === eventId);
+  if (!event) return null;
+  
+  event.expenses = [...(event.expenses || []), expense];
+  await saveEvent(event);
+  return event;
+};
+
+export const updateExpense = async (eventId: string, expense: Expense): Promise<AppEvent | null> => {
+  const events = await getEvents();
+  const event = events.find(e => e.id === eventId);
+  if (!event) return null;
+  
+  event.expenses = (event.expenses || []).map(e => e.id === expense.id ? expense : e);
+  await saveEvent(event);
+  return event;
+};
+
+export const deleteExpense = async (eventId: string, expenseId: string): Promise<AppEvent | null> => {
+  const events = await getEvents();
+  const event = events.find(e => e.id === eventId);
+  if (!event) return null;
+  
+  event.expenses = (event.expenses || []).filter(e => e.id !== expenseId);
+  await saveEvent(event);
+  return event;
 };
 
 export const updateParticipantGlobally = async (oldKey: string, newData: { name: string, email: string, phone: string }): Promise<void> => {
@@ -107,7 +195,12 @@ export const updateParticipantGlobally = async (oldKey: string, newData: { name:
 export const deleteEvent = async (eventId: string): Promise<void> => {
   const db = getDb();
   if (db) {
-    await deleteDoc(doc(db, "events", eventId));
+    try {
+      await deleteDoc(doc(db, "events", eventId));
+    } catch (e: any) {
+      if (e.code === 'permission-denied') throw new Error('FIREBASE_PERMISSION_DENIED');
+      throw e;
+    }
   } else {
     const events = (await getEvents()).filter(e => e.id !== eventId);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
@@ -122,7 +215,10 @@ export const getExtraExpenses = async (): Promise<ExtraExpense[]> => {
       const list: ExtraExpense[] = [];
       querySnapshot.forEach((doc) => { list.push(doc.data() as ExtraExpense); });
       return list;
-    } catch (e) { return []; }
+    } catch (e: any) { 
+      if (e.code === 'permission-denied') throw new Error('FIREBASE_PERMISSION_DENIED');
+      return []; 
+    }
   } else {
     const data = localStorage.getItem(EXTRA_EXPENSES_KEY);
     return data ? JSON.parse(data) : [];
@@ -132,7 +228,12 @@ export const getExtraExpenses = async (): Promise<ExtraExpense[]> => {
 export const saveExtraExpense = async (expense: ExtraExpense): Promise<void> => {
   const db = getDb();
   if (db) {
-    await setDoc(doc(db, "extra_expenses", expense.id), cleanForFirebase(expense));
+    try {
+      await setDoc(doc(db, "extra_expenses", expense.id), cleanForFirebase(expense));
+    } catch (e: any) {
+      if (e.code === 'permission-denied') throw new Error('FIREBASE_PERMISSION_DENIED');
+      throw e;
+    }
   } else {
     const list = await getExtraExpenses();
     list.push(expense);
@@ -143,100 +244,16 @@ export const saveExtraExpense = async (expense: ExtraExpense): Promise<void> => 
 export const deleteExtraExpense = async (id: string): Promise<void> => {
   const db = getDb();
   if (db) {
-    await deleteDoc(doc(db, "extra_expenses", id));
+    try {
+      await deleteDoc(doc(db, "extra_expenses", id));
+    } catch (e: any) {
+      if (e.code === 'permission-denied') throw new Error('FIREBASE_PERMISSION_DENIED');
+      throw e;
+    }
   } else {
     const list = (await getExtraExpenses()).filter(e => e.id !== id);
     localStorage.setItem(EXTRA_EXPENSES_KEY, JSON.stringify(list));
   }
-};
-
-export const addAttendee = async (eventId: string, attendee: Attendee): Promise<AppEvent | null> => {
-  const events = await getEvents();
-  const eventIdx = events.findIndex(e => e.id === eventId);
-  if (eventIdx === -1) return null;
-  
-  const event = events[eventIdx];
-  event.attendees.push(attendee);
-  await saveEvent(event);
-  return event;
-};
-
-export const updateAttendee = async (eventId: string, updatedAttendee: Attendee): Promise<AppEvent | null> => {
-  const events = await getEvents();
-  const eventIdx = events.findIndex(e => e.id === eventId);
-  if (eventIdx === -1) return null;
-  
-  const event = events[eventIdx];
-  const attendeeIdx = event.attendees.findIndex(a => a.id === updatedAttendee.id);
-  if (attendeeIdx !== -1) {
-    event.attendees[attendeeIdx] = updatedAttendee;
-    await saveEvent(event);
-  }
-  return event;
-};
-
-export const togglePaymentStatus = async (eventId: string, attendeeId: string): Promise<AppEvent | null> => {
-  const events = await getEvents();
-  const eventIdx = events.findIndex(e => e.id === eventId);
-  if (eventIdx === -1) return null;
-  
-  const event = events[eventIdx];
-  const attendeeIdx = event.attendees.findIndex(a => a.id === attendeeId);
-  if (attendeeIdx !== -1) {
-    event.attendees[attendeeIdx].status = 
-      event.attendees[attendeeIdx].status === PaymentStatus.PAID 
-        ? PaymentStatus.PENDING 
-        : PaymentStatus.PAID;
-    await saveEvent(event);
-  }
-  return event;
-};
-
-export const deleteAttendee = async (eventId: string, attendeeId: string): Promise<AppEvent | null> => {
-  const events = await getEvents();
-  const eventIdx = events.findIndex(e => e.id === eventId);
-  if (eventIdx === -1) return null;
-  
-  const event = events[eventIdx];
-  event.attendees = event.attendees.filter(a => a.id !== attendeeId);
-  await saveEvent(event);
-  return event;
-};
-
-export const addExpense = async (eventId: string, expense: Expense): Promise<AppEvent | null> => {
-  const events = await getEvents();
-  const eventIdx = events.findIndex(e => e.id === eventId);
-  if (eventIdx === -1) return null;
-  
-  const event = events[eventIdx];
-  event.expenses.push(expense);
-  await saveEvent(event);
-  return event;
-};
-
-export const updateExpense = async (eventId: string, updatedExpense: Expense): Promise<AppEvent | null> => {
-  const events = await getEvents();
-  const eventIdx = events.findIndex(e => e.id === eventId);
-  if (eventIdx === -1) return null;
-  
-  const event = events[eventIdx];
-  const expenseIdx = event.expenses.findIndex(e => e.id === updatedExpense.id);
-  if (expenseIdx !== -1) {
-    event.expenses[expenseIdx] = updatedExpense;
-    await saveEvent(event);
-  }
-  return event;
-};
-
-export const deleteExpense = async (eventId: string, expenseId: string): Promise<AppEvent | null> => {
-  const events = await getEvents();
-  const eventIdx = events.findIndex(e => e.id === eventId);
-  if (eventIdx === -1) return null;
-  
-  const event = events[eventIdx];
-  event.expenses = event.expenses.filter(e => e.id !== expenseId);
-  await saveEvent(event);
-  return event;
 };
 
 export const isCloudEnabled = (): boolean => !!localStorage.getItem(FIREBASE_CONFIG_KEY);

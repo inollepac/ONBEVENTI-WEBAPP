@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from './Button';
-import { Save, ArrowLeft, ShieldCheck, Database, Trophy, Settings as SettingsIcon, AlertCircle, CheckCircle } from 'lucide-react';
+import { Save, ArrowLeft, ShieldCheck, Database, Trophy, Settings as SettingsIcon, AlertCircle, CheckCircle, ExternalLink, HelpCircle } from 'lucide-react';
 
 interface SettingsProps {
   onBack: () => void;
@@ -44,7 +44,6 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
         if (parsed.apiKey) {
            localStorage.setItem('onbeventi_firebase_config', JSON.stringify(parsed, null, 2));
         } else {
-          // Robust parsing fallback (similar to your existing logic)
           const extractedConfig: Record<string, string> = {};
           ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'].forEach(key => {
             const regex = new RegExp(`(?:["']?)${key}(?:["']?)\\s*:\\s*(["'])(.*?)\\1`);
@@ -54,7 +53,6 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
           if (extractedConfig.apiKey) localStorage.setItem('onbeventi_firebase_config', JSON.stringify(extractedConfig));
         }
       } catch (err) {
-        // Just save as text if parsing fails (fallback)
         localStorage.setItem('onbeventi_firebase_config', configInput);
       }
     } else {
@@ -75,7 +73,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
         Dashboard
       </button>
 
-      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden mb-8">
         <div className="px-8 py-6 border-b border-gray-100 bg-gray-50/50">
           <h2 className="text-2xl font-black text-gray-900 flex items-center gap-2">
             <SettingsIcon className="w-6 h-6 text-pink-500" />
@@ -107,7 +105,6 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
                     onChange={e => setVipThreshold(e.target.value)} 
                     className="w-full px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-pink-500 outline-none transition-all" 
                   />
-                  <p className="text-[10px] text-gray-400 mt-2">Badge "VIP Platinum" assegnato ai membri con questo numero di presenze.</p>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                   <label className="block text-xs font-black text-gray-500 uppercase mb-2">Soglia Fedeltà (Presenze)</label>
@@ -117,7 +114,6 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
                     onChange={e => setRegularThreshold(e.target.value)} 
                     className="w-full px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-pink-500 outline-none transition-all" 
                   />
-                  <p className="text-[10px] text-gray-400 mt-2">Badge "Membro Fedele" assegnato ai membri più regolari.</p>
                 </div>
              </div>
           </div>
@@ -133,7 +129,7 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
                placeholder='{ "apiKey": "...", "projectId": "...", ... }'
                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-pink-500 outline-none transition-all" 
              />
-             <p className="text-xs text-gray-400">Incolla qui l'oggetto di configurazione del tuo progetto Firebase per sincronizzare i dati della tua community.</p>
+             <p className="text-xs text-gray-400">Incolla qui l'oggetto di configurazione di Firebase.</p>
           </div>
 
           <div className="flex items-center justify-between pt-4">
@@ -147,6 +143,41 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
             </Button>
           </div>
         </form>
+      </div>
+
+      {/* Guida Risoluzione Problemi Firebase */}
+      <div className="bg-indigo-950 rounded-2xl shadow-xl p-8 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-bl-full"></div>
+        <h3 className="text-lg font-black flex items-center gap-2 mb-4">
+          <HelpCircle className="w-6 h-6 text-pink-400" /> 
+          Dati "Scomparsi"? Risolvi ora
+        </h3>
+        <p className="text-sm text-indigo-200 mb-6 leading-relaxed">
+          Se ricevi un'email che dice che l'accesso a Firestore scade, i tuoi dati sono al sicuro ma <b>bloccati</b>. 
+          Segui questi passaggi per ripristinare l'accesso:
+        </p>
+        <div className="space-y-4">
+          <div className="flex gap-4">
+            <div className="w-6 h-6 rounded-full bg-pink-500 flex items-center justify-center text-xs font-bold shrink-0">1</div>
+            <p className="text-xs text-indigo-100">Vai su <b>Firestore Database</b> nella console di Firebase.</p>
+          </div>
+          <div className="flex gap-4">
+            <div className="w-6 h-6 rounded-full bg-pink-500 flex items-center justify-center text-xs font-bold shrink-0">2</div>
+            <p className="text-xs text-indigo-100">Clicca sulla scheda <b>Rules</b> (Regole).</p>
+          </div>
+          <div className="flex gap-4">
+            <div className="w-6 h-6 rounded-full bg-pink-500 flex items-center justify-center text-xs font-bold shrink-0">3</div>
+            <p className="text-xs text-indigo-100">Cambia la data di scadenza o imposta <code>allow read, write: if true;</code></p>
+          </div>
+        </div>
+        <a 
+          href="https://console.firebase.google.com/" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="mt-8 inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest bg-white text-indigo-950 px-6 py-3 rounded-xl hover:bg-pink-100 transition-colors"
+        >
+          Vai alla Console Firebase <ExternalLink className="w-3 h-3" />
+        </a>
       </div>
     </div>
   );
