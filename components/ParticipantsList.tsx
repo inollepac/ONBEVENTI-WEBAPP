@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { AppEvent, Attendee } from '../types';
-import { Users, Search, Mail, Phone, ArrowLeft, SortAsc, SortDesc, Trophy, UserCheck, Star, Repeat, PieChart } from 'lucide-react';
+import { Users, Search, Mail, Phone, ArrowLeft, SortAsc, SortDesc, Trophy, UserCheck, Star, Repeat, Target } from 'lucide-react';
 
 interface ParticipantsListProps {
   events: AppEvent[];
@@ -22,17 +22,23 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
   const regularThreshold = Number(localStorage.getItem('onbeventi_regular_threshold') || '3');
 
   const { list, stats } = useMemo(() => {
+    // 1. Trova la data dell'evento più recente
+    const sortedEvents = [...events].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const latestEventDate = sortedEvents.length > 0 ? new Date(sortedEvents[0].date).getTime() : 0;
+
     const map = new Map<string, { 
       attendee: Attendee, 
-      eventsCount: number, // Solo presenze effettive
-      totalBookings: number, // Totale prenotazioni (incluse assenze)
+      eventsCount: number, 
+      totalBookings: number, 
       eventTitles: string[], 
+      firstEventDate: number, // Data (timestamp) del primo evento a cui ha partecipato
       key: string,
       isVip: boolean,
       isRegular: boolean
     }>();
 
     (events || []).forEach(event => {
+      const eventTimestamp = new Date(event.date).getTime();
       (event.attendees || []).forEach(a => {
         const key = (a.email || a.phone || a.name).toLowerCase().trim();
         const isPresent = a.isPresent !== false;
@@ -43,6 +49,9 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
           if (isPresent) {
             existing.eventsCount += 1;
           }
+          if (eventTimestamp < existing.firstEventDate) {
+            existing.firstEventDate = eventTimestamp;
+          }
           existing.eventTitles.push(event.title);
         } else {
           map.set(key, {
@@ -50,9 +59,10 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
             eventsCount: isPresent ? 1 : 0,
             totalBookings: 1,
             eventTitles: [event.title],
+            firstEventDate: eventTimestamp,
             key: key,
-            isVip: false, // calcolato dopo
-            isRegular: false // calcolato dopo
+            isVip: false,
+            isRegular: false
           });
         }
       });
@@ -64,17 +74,26 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
       isRegular: item.eventsCount >= regularThreshold && item.eventsCount < vipThreshold
     }));
 
-    // Calcolo Statistiche Community
+    // --- Calcolo Statistiche Community ---
     const totalMembers = fullList.length;
     const multiEventCount = fullList.filter(m => m.eventsCount > 1).length;
     const fedeleCount = fullList.filter(m => m.isRegular).length;
     const vipCount = fullList.filter(m => m.isVip).length;
+
+    // --- Logica Richiesta: Ritenzione Reale (Esclusi i nuovi dell'ultimo evento) ---
+    // Membri "storici": quelli il cui primo evento non è l'ultimo organizzato
+    const historicalMembers = fullList.filter(m => m.firstEventDate < latestEventDate);
+    const returningHistoricalCount = historicalMembers.filter(m => m.eventsCount > 1).length;
+    const realRetentionRate = historicalMembers.length > 0 
+      ? (returningHistoricalCount / historicalMembers.length) * 100 
+      : 0;
 
     const stats = {
       totalMembers,
       multiEventPercentage: totalMembers > 0 ? (multiEventCount / totalMembers) * 100 : 0,
       fedelePercentage: totalMembers > 0 ? (fedeleCount / totalMembers) * 100 : 0,
       vipPercentage: totalMembers > 0 ? (vipCount / totalMembers) * 100 : 0,
+      realRetentionRate
     };
     
     let filteredList = [...fullList];
@@ -118,48 +137,59 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
         </button>
         <div>
           <h1 className="text-2xl font-black text-gray-900 tracking-tight">Anagrafica & Community</h1>
-          <p className="text-sm text-gray-500">Analisi e gestione dei membri di ONBEVENTI.</p>
+          <p className="text-sm text-gray-500">Analisi profonda della partecipazione e fedeltà.</p>
         </div>
       </div>
 
-      {/* Community Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-16 h-16 bg-indigo-50 rounded-bl-full group-hover:scale-110 transition-transform"></div>
+      {/* Community Stats Grid - 5 Cards Layout */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-12 h-12 bg-indigo-50 rounded-bl-full"></div>
           <div className="relative">
-            <Users className="w-5 h-5 text-indigo-600 mb-3" />
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Membri Totali</p>
-            <p className="text-3xl font-black text-gray-900 mt-1">{stats.totalMembers}</p>
+            <Users className="w-4 h-4 text-indigo-600 mb-2" />
+            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Membri Totali</p>
+            <p className="text-2xl font-black text-gray-900 mt-0.5">{stats.totalMembers}</p>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-16 h-16 bg-pink-50 rounded-bl-full group-hover:scale-110 transition-transform"></div>
+        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-12 h-12 bg-pink-50 rounded-bl-full"></div>
           <div className="relative">
-            <Repeat className="w-5 h-5 text-pink-500 mb-3" />
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Ritorno Community</p>
-            <p className="text-3xl font-black text-gray-900 mt-1">{stats.multiEventPercentage.toFixed(1)}<span className="text-sm font-bold ml-1">%</span></p>
-            <p className="text-[9px] text-gray-400 mt-1 font-medium">Membri con {'>'}1 presenza</p>
+            <Repeat className="w-4 h-4 text-pink-500 mb-2" />
+            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Ritorno (Lordo)</p>
+            <p className="text-2xl font-black text-gray-900 mt-0.5">{stats.multiEventPercentage.toFixed(1)}%</p>
+            <p className="text-[8px] text-gray-400 mt-1 font-medium italic">Su tutta la lista</p>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-16 h-16 bg-green-50 rounded-bl-full group-hover:scale-110 transition-transform"></div>
+        {/* Nuova Statistica: Ritenzione Reale */}
+        <div className="bg-indigo-900 p-5 rounded-3xl border border-indigo-950 shadow-xl relative overflow-hidden group text-white">
+          <div className="absolute top-0 right-0 w-12 h-12 bg-white/5 rounded-bl-full"></div>
           <div className="relative">
-            <Star className="w-5 h-5 text-green-500 mb-3" />
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Membri Fedeli</p>
-            <p className="text-3xl font-black text-gray-900 mt-1">{stats.fedelePercentage.toFixed(1)}<span className="text-sm font-bold ml-1">%</span></p>
-            <p className="text-[9px] text-gray-400 mt-1 font-medium">Soglia: {regularThreshold}+ eventi</p>
+            <Target className="w-4 h-4 text-pink-400 mb-2" />
+            <p className="text-[9px] font-black text-indigo-300 uppercase tracking-widest">Ritenzione Reale</p>
+            <p className="text-2xl font-black text-white mt-0.5">{stats.realRetentionRate.toFixed(1)}%</p>
+            <p className="text-[8px] text-indigo-400 mt-1 font-medium leading-tight">Esclusi i nuovi dell'ultimo evento</p>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-16 h-16 bg-yellow-50 rounded-bl-full group-hover:scale-110 transition-transform"></div>
+        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-12 h-12 bg-green-50 rounded-bl-full"></div>
           <div className="relative">
-            <Trophy className="w-5 h-5 text-yellow-500 mb-3" />
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Membri VIP</p>
-            <p className="text-3xl font-black text-gray-900 mt-1">{stats.vipPercentage.toFixed(1)}<span className="text-sm font-bold ml-1">%</span></p>
-            <p className="text-[9px] text-gray-400 mt-1 font-medium">Soglia: {vipThreshold}+ eventi</p>
+            <Star className="w-4 h-4 text-green-500 mb-2" />
+            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Membri Fedeli</p>
+            <p className="text-2xl font-black text-gray-900 mt-0.5">{stats.fedelePercentage.toFixed(1)}%</p>
+            <p className="text-[8px] text-gray-400 mt-1 font-medium italic">Badge Fedeltà</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-12 h-12 bg-yellow-50 rounded-bl-full"></div>
+          <div className="relative">
+            <Trophy className="w-4 h-4 text-yellow-500 mb-2" />
+            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Membri VIP</p>
+            <p className="text-2xl font-black text-gray-900 mt-0.5">{stats.vipPercentage.toFixed(1)}%</p>
+            <p className="text-[8px] text-gray-400 mt-1 font-medium italic">Badge VIP</p>
           </div>
         </div>
       </div>
