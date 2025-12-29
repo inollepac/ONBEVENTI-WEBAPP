@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { AppEvent, Attendee } from '../types';
-import { Users, Search, Mail, Phone, ArrowLeft, SortAsc, SortDesc, Trophy, UserCheck, Star, Repeat, Target } from 'lucide-react';
+import { Users, Search, Mail, Phone, ArrowLeft, SortAsc, SortDesc, Trophy, Star, Repeat, Target } from 'lucide-react';
 
 interface ParticipantsListProps {
   events: AppEvent[];
@@ -31,7 +31,7 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
       eventsCount: number, 
       totalBookings: number, 
       eventTitles: string[], 
-      firstEventDate: number, // Data (timestamp) del primo evento a cui ha partecipato
+      firstEventDate: number, 
       key: string,
       isVip: boolean,
       isRegular: boolean
@@ -74,17 +74,15 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
       isRegular: item.eventsCount >= regularThreshold && item.eventsCount < vipThreshold
     }));
 
-    // --- Calcolo Statistiche Community ---
     const totalMembers = fullList.length;
     const multiEventCount = fullList.filter(m => m.eventsCount > 1).length;
     const fedeleCount = fullList.filter(m => m.isRegular).length;
     const vipCount = fullList.filter(m => m.isVip).length;
 
-    // --- Logica Richiesta: Ritenzione Reale (Esclusi i nuovi dell'ultimo evento) ---
-    // Membri "storici": quelli il cui primo evento non è l'ultimo organizzato
+    // --- Logica Ritorno Reale (Esclusi i nuovi dell'ultimo evento) ---
     const historicalMembers = fullList.filter(m => m.firstEventDate < latestEventDate);
     const returningHistoricalCount = historicalMembers.filter(m => m.eventsCount > 1).length;
-    const realRetentionRate = historicalMembers.length > 0 
+    const realReturnRate = historicalMembers.length > 0 
       ? (returningHistoricalCount / historicalMembers.length) * 100 
       : 0;
 
@@ -93,7 +91,7 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
       multiEventPercentage: totalMembers > 0 ? (multiEventCount / totalMembers) * 100 : 0,
       fedelePercentage: totalMembers > 0 ? (fedeleCount / totalMembers) * 100 : 0,
       vipPercentage: totalMembers > 0 ? (vipCount / totalMembers) * 100 : 0,
-      realRetentionRate
+      realReturnRate
     };
     
     let filteredList = [...fullList];
@@ -137,13 +135,13 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
         </button>
         <div>
           <h1 className="text-2xl font-black text-gray-900 tracking-tight">Anagrafica & Community</h1>
-          <p className="text-sm text-gray-500">Analisi profonda della partecipazione e fedeltà.</p>
+          <p className="text-sm text-gray-500">Analisi della partecipazione e fedeltà dei membri.</p>
         </div>
       </div>
 
-      {/* Community Stats Grid - 5 Cards Layout */}
+      {/* Community Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
+        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
           <div className="absolute top-0 right-0 w-12 h-12 bg-indigo-50 rounded-bl-full"></div>
           <div className="relative">
             <Users className="w-4 h-4 text-indigo-600 mb-2" />
@@ -156,20 +154,22 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
           <div className="absolute top-0 right-0 w-12 h-12 bg-pink-50 rounded-bl-full"></div>
           <div className="relative">
             <Repeat className="w-4 h-4 text-pink-500 mb-2" />
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Ritorno (Lordo)</p>
+            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Ritorno Lordo</p>
             <p className="text-2xl font-black text-gray-900 mt-0.5">{stats.multiEventPercentage.toFixed(1)}%</p>
-            <p className="text-[8px] text-gray-400 mt-1 font-medium italic">Su tutta la lista</p>
+            <p className="text-[8px] text-gray-400 mt-1 font-medium italic">Su tutti gli iscritti</p>
           </div>
         </div>
 
-        {/* Nuova Statistica: Ritenzione Reale */}
-        <div className="bg-indigo-900 p-5 rounded-3xl border border-indigo-950 shadow-xl relative overflow-hidden group text-white">
-          <div className="absolute top-0 right-0 w-12 h-12 bg-white/5 rounded-bl-full"></div>
+        {/* Statistica Chiave: Ritorno Reale */}
+        <div className="bg-gradient-to-br from-indigo-950 to-indigo-900 p-5 rounded-3xl border border-indigo-800 shadow-xl relative overflow-hidden text-white group">
+          <div className="absolute -top-2 -right-2 w-16 h-16 bg-pink-500/10 rounded-full blur-xl group-hover:scale-150 transition-transform"></div>
           <div className="relative">
             <Target className="w-4 h-4 text-pink-400 mb-2" />
-            <p className="text-[9px] font-black text-indigo-300 uppercase tracking-widest">Ritenzione Reale</p>
-            <p className="text-2xl font-black text-white mt-0.5">{stats.realRetentionRate.toFixed(1)}%</p>
-            <p className="text-[8px] text-indigo-400 mt-1 font-medium leading-tight">Esclusi i nuovi dell'ultimo evento</p>
+            <p className="text-[9px] font-black text-indigo-300 uppercase tracking-widest">Ritorno Reale</p>
+            <p className="text-2xl font-black text-white mt-0.5">{stats.realReturnRate.toFixed(1)}%</p>
+            <p className="text-[8px] text-indigo-400 mt-1 font-bold leading-tight uppercase tracking-tighter">
+              Esclusi i nuovi dell'ultimo evento
+            </p>
           </div>
         </div>
 
@@ -236,7 +236,7 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
                 <th className="px-6 py-4">Contatti</th>
                 <th className="px-6 py-4 text-center cursor-pointer hover:bg-indigo-900 transition-colors" onClick={() => toggleSort('eventsCount')}>
                   <div className="flex items-center justify-center gap-2">
-                    Presenze Effettive {sortKey === 'eventsCount' && (sortOrder === 'asc' ? <SortAsc className="w-3 h-3 opacity-60" /> : <SortDesc className="w-3 h-3 opacity-60" />)}
+                    Presenze {sortKey === 'eventsCount' && (sortOrder === 'asc' ? <SortAsc className="w-3 h-3 opacity-60" /> : <SortDesc className="w-3 h-3 opacity-60" />)}
                   </div>
                 </th>
                 <th className="px-6 py-4">Ultimi Eventi</th>
@@ -280,12 +280,12 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
                             )}
                             {item.isRegular && (
                               <span className="inline-flex items-center bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border border-green-200">
-                                <Star className="w-2.5 h-2.5 mr-1" /> MEMBRO FEDELE
+                                <Star className="w-2.5 h-2.5 mr-1" /> FEDELE
                               </span>
                             )}
                           </div>
                           {item.eventsCount >= vipThreshold && (
-                            <span className="text-[9px] text-yellow-600/70 font-bold uppercase tracking-tighter">Miglior Membro</span>
+                            <span className="text-[9px] text-yellow-600/70 font-bold uppercase tracking-tighter">Best Member</span>
                           )}
                         </div>
                       </div>
@@ -315,9 +315,6 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
                         }`}>
                           {item.eventsCount}
                         </span>
-                        {item.totalBookings > item.eventsCount && (
-                          <span className="text-[9px] text-gray-400 mt-1">({item.totalBookings} prenotazioni totali)</span>
-                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -329,11 +326,6 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
                             {t}
                           </span>
                         ))}
-                        {item.eventTitles.length > 2 && (
-                          <span className="text-[9px] text-gray-400 font-bold flex items-center">
-                            +{item.eventTitles.length - 2} altri
-                          </span>
-                        )}
                       </div>
                     </td>
                   </tr>
