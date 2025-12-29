@@ -26,22 +26,16 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [loading, setLoading] = useState(false);
   
-  // State for new Attendee
-  const [newAttendee, setNewAttendee] = useState({ name: '', email: '', phone: '', paidAmount: '' });
+  const [newAttendee, setNewAttendee] = useState({ name: '', email: '', phone: '', paidAmount: '', gender: '' });
   const [suggestions, setSuggestions] = useState<Attendee[]>([]);
   
-  // State for editing Attendee
   const [editingAttendeeId, setEditingAttendeeId] = useState<string | null>(null);
-  const [editAttendeeData, setEditAttendeeData] = useState({ name: '', email: '', phone: '', paidAmount: '' });
+  const [editAttendeeData, setEditAttendeeData] = useState({ name: '', email: '', phone: '', paidAmount: '', gender: '' });
 
-  // State for new Expense
   const [newExpense, setNewExpense] = useState({ description: '', amount: '' });
-  
-  // State for editing Expense
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [editExpenseData, setEditExpenseData] = useState({ description: '', amount: '' });
 
-  // --- CONFIRMATION MODAL STATE ---
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     type: 'DELETE_EVENT' | 'DELETE_ATTENDEE' | 'DELETE_EXPENSE' | null;
@@ -53,7 +47,6 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
     message: ''
   });
 
-  // --- SUGGESTIONS LOGIC ---
   const globalParticipants = useMemo(() => {
     const map = new Map<string, Attendee>();
     (allEvents || []).forEach(ev => {
@@ -82,12 +75,11 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
       name: p.name,
       email: p.email || '',
       phone: p.phone || '',
+      gender: p.gender || '',
       paidAmount: '' 
     });
     setSuggestions([]);
   };
-
-  // --- ATTENDEE LOGIC ---
 
   const handleAddAttendee = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,6 +98,7 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
       name: newAttendee.name,
       email: newAttendee.email,
       phone: newAttendee.phone,
+      gender: (newAttendee.gender as 'M' | 'F' | 'Other') || undefined,
       paidAmount: newAttendee.paidAmount ? Number(newAttendee.paidAmount) : undefined,
       status: PaymentStatus.PENDING,
       registrationDate: new Date().toISOString(),
@@ -116,13 +109,13 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
       const updated = await addAttendee(event.id, attendee);
       if (updated) {
         onUpdate(updated);
-        setNewAttendee({ name: '', email: '', phone: '', paidAmount: '' });
+        setNewAttendee({ name: '', email: '', phone: '', paidAmount: '', gender: '' });
         setShowAddAttendee(false);
         setSuggestions([]);
       }
     } catch (err) {
       console.error("Error adding attendee:", err);
-      alert("Si è verificato un errore durante l'aggiunta.");
+      alert("Errore durante l'aggiunta.");
     } finally {
       setLoading(false);
     }
@@ -134,13 +127,14 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
       name: attendee.name, 
       email: attendee.email || '', 
       phone: attendee.phone || '',
+      gender: attendee.gender || '',
       paidAmount: attendee.paidAmount !== undefined ? attendee.paidAmount.toString() : ''
     });
   };
 
   const cancelEditingAttendee = () => {
     setEditingAttendeeId(null);
-    setEditAttendeeData({ name: '', email: '', phone: '', paidAmount: '' });
+    setEditAttendeeData({ name: '', email: '', phone: '', paidAmount: '', gender: '' });
   };
 
   const saveEditedAttendee = async (originalAttendee: Attendee) => {
@@ -149,6 +143,7 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
       name: editAttendeeData.name,
       email: editAttendeeData.email,
       phone: editAttendeeData.phone,
+      gender: (editAttendeeData.gender as 'M' | 'F' | 'Other') || undefined,
       paidAmount: editAttendeeData.paidAmount ? Number(editAttendeeData.paidAmount) : undefined
     };
     setLoading(true);
@@ -184,7 +179,6 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
     }
   };
 
-  // --- DELETE LOGIC ---
   const requestDeleteAttendee = (attendeeId: string) => {
     setConfirmModal({ isOpen: true, type: 'DELETE_ATTENDEE', itemId: attendeeId, message: 'Sei sicuro di voler rimuovere questo membro dalla lista?' });
   };
@@ -192,7 +186,7 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
     setConfirmModal({ isOpen: true, type: 'DELETE_EXPENSE', itemId: expenseId, message: 'Sei sicuro di voler eliminare questa voce di spesa?' });
   };
   const requestDeleteEvent = () => {
-    setConfirmModal({ isOpen: true, type: 'DELETE_EVENT', message: 'ATTENZIONE: Stai per eliminare definitivamente questo evento e tutti i dati associati. Sei sicuro?' });
+    setConfirmModal({ isOpen: true, type: 'DELETE_EVENT', message: 'ATTENZIONE: Stai per eliminare definitivamente questo evento. Sei sicuro?' });
   };
 
   const executeDelete = async () => {
@@ -214,7 +208,6 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
     }
   };
 
-  // --- EXPENSE LOGIC ---
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -247,7 +240,6 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
     } finally { setLoading(false); }
   };
 
-  // --- CALCULATIONS ---
   const attendees = event.attendees || [];
   const expenses = event.expenses || [];
   
@@ -262,14 +254,12 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
   const netProfit = totalCollected - totalExpenses;
   const isProfitPositive = netProfit >= 0;
   
-  // L'occupazione conta tutti gli iscritti (anche se poi assenti, il posto è occupato)
   const occupancyPercentage = event.maxAttendees ? Math.min((attendees.length / event.maxAttendees) * 100, 100) : 0;
 
   return (
     <div className="space-y-8 animate-fade-in pb-10 relative">
       {loading && <div className="fixed inset-0 z-[60] bg-white/50 backdrop-blur-sm flex items-center justify-center"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-pink-600"></div></div>}
 
-      {/* Confirmation Modal */}
       {confirmModal.isOpen && (
         <div className="fixed inset-0 bg-indigo-950/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 animate-scale-in border border-gray-100">
@@ -286,7 +276,6 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
         </div>
       )}
 
-      {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center gap-6 justify-between bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
         <div className="flex items-start gap-5">
           <button onClick={onBack} className="p-2.5 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl transition-colors mt-1" type="button"><ArrowLeft className="w-5 h-5" /></button>
@@ -304,7 +293,6 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
         </div>
       </div>
 
-      {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-24 h-24 bg-green-50 rounded-bl-full -mr-5 -mt-5"></div>
@@ -338,7 +326,6 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left: Details & Expenses */}
         <div className="space-y-8">
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center"><span className="w-1.5 h-6 bg-pink-500 rounded-full mr-3"></span>Dettagli</h3>
@@ -389,11 +376,10 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
           </div>
         </div>
 
-        {/* Right: Attendees List */}
         <div className="lg:col-span-2 flex flex-col h-full">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full overflow-hidden">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white">
-              <div className="flex items-center gap-3"><div className="p-2 bg-pink-100 text-pink-600 rounded-lg"><Users className="w-5 h-5" /></div><div><h2 className="font-bold text-gray-900 text-lg">Lista Membri Iscritti</h2><p className="text-xs text-gray-500">Gestisci partecipazioni, assenze e pagamenti</p></div></div>
+              <div className="flex items-center gap-3"><div className="p-2 bg-pink-100 text-pink-600 rounded-lg"><Users className="w-5 h-5" /></div><div><h2 className="font-bold text-gray-900 text-lg">Lista Membri Iscritti</h2><p className="text-xs text-gray-500">Gestisci partecipazioni e pagamenti</p></div></div>
               <Button onClick={() => setShowAddAttendee(!showAddAttendee)} variant="primary" className="text-xs" disabled={!!event.maxAttendees && attendees.length >= event.maxAttendees} type="button"><UserPlus className="w-4 h-4 mr-2" /> Aggiungi</Button>
             </div>
 
@@ -414,9 +400,21 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
                     </div>
                     <input type="email" className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm" value={newAttendee.email} onChange={e => setNewAttendee(prev => ({ ...prev, email: e.target.value }))} placeholder="Email" />
                     <input type="tel" className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm" value={newAttendee.phone} onChange={e => setNewAttendee(prev => ({ ...prev, phone: e.target.value }))} placeholder="Telefono" />
-                    <input type="number" step="0.01" className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm font-bold text-pink-600 bg-pink-50" value={newAttendee.paidAmount} onChange={e => setNewAttendee(prev => ({ ...prev, paidAmount: e.target.value }))} placeholder={`Quota (Standard: €${event.cost})`} />
+                    <select 
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 bg-white"
+                      value={newAttendee.gender}
+                      onChange={e => setNewAttendee(prev => ({ ...prev, gender: e.target.value }))}
+                    >
+                      <option value="">Sesso (Opzionale)</option>
+                      <option value="M">Maschio</option>
+                      <option value="F">Femmina</option>
+                      <option value="Other">Altro / N.D.</option>
+                    </select>
                   </div>
-                  <div className="flex justify-end gap-2 pt-2"><Button type="button" variant="ghost" onClick={() => setShowAddAttendee(false)}>Chiudi</Button><Button type="submit" isLoading={loading}>Inserisci in lista</Button></div>
+                  <div className="flex justify-between items-center pt-2">
+                    <input type="number" step="0.01" className="max-w-[200px] px-4 py-2 border border-gray-200 rounded-lg text-sm font-bold text-pink-600 bg-white" value={newAttendee.paidAmount} onChange={e => setNewAttendee(prev => ({ ...prev, paidAmount: e.target.value }))} placeholder={`Quota (Std: €${event.cost})`} />
+                    <div className="flex gap-2"><Button type="button" variant="ghost" onClick={() => setShowAddAttendee(false)}>Chiudi</Button><Button type="submit" isLoading={loading}>Inserisci</Button></div>
+                  </div>
                 </form>
               </div>
             )}
@@ -445,11 +443,25 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
                       return (
                         <tr key={attendee.id} className={`group transition-colors ${isEditing ? 'bg-pink-50' : 'hover:bg-gray-50'} ${isAbsent ? 'opacity-60 grayscale-[0.5]' : ''}`}>
                           <td className="px-6 py-4">
-                            {isEditing ? (<input className="w-full border border-pink-300 rounded-md text-sm px-3 py-1.5" value={editAttendeeData.name} onChange={e => setEditAttendeeData(p => ({...p, name: e.target.value}))} />) : (
+                            {isEditing ? (
+                              <div className="space-y-2">
+                                <input className="w-full border border-pink-300 rounded-md text-sm px-3 py-1.5" value={editAttendeeData.name} onChange={e => setEditAttendeeData(p => ({...p, name: e.target.value}))} />
+                                <select className="w-full border border-pink-300 rounded-md text-sm px-3 py-1.5 bg-white" value={editAttendeeData.gender} onChange={e => setEditAttendeeData(p => ({...p, gender: e.target.value}))}>
+                                  <option value="">Sesso</option>
+                                  <option value="M">Maschio</option>
+                                  <option value="F">Femmina</option>
+                                  <option value="Other">Altro</option>
+                                </select>
+                              </div>
+                            ) : (
                               <div className="flex items-center gap-2">
                                 <span className={`font-semibold text-gray-900 ${isAbsent ? 'line-through' : ''}`}>{attendee.name}</span>
-                                {hasCustomAmount && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold uppercase flex items-center gap-0.5"><Tag className="w-2.5 h-2.5" /> Quota Speciale</span>}
-                                {isAbsent && <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-black uppercase tracking-widest border border-red-200">Assente</span>}
+                                {attendee.gender && (
+                                  <span className={`text-[8px] px-1 rounded font-black ${attendee.gender === 'M' ? 'bg-blue-100 text-blue-600' : attendee.gender === 'F' ? 'bg-pink-100 text-pink-600' : 'bg-gray-100 text-gray-500'}`}>
+                                    {attendee.gender}
+                                  </span>
+                                )}
+                                {hasCustomAmount && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold uppercase flex items-center gap-0.5"><Tag className="w-2.5 h-2.5" /> Special</span>}
                               </div>
                             )}
                           </td>
@@ -482,13 +494,12 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
                                 <button 
                                   onClick={() => handleTogglePresence(attendee)} 
                                   className={`p-2 rounded-lg transition-all ${isAbsent ? 'text-red-500 bg-red-50 hover:bg-red-100' : 'text-gray-400 hover:text-green-600 hover:bg-green-50'}`}
-                                  title={isAbsent ? "Segna come Presente" : "Segna come Assente"}
                                 >
                                   {isAbsent ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                                 </button>
                                 <div className="w-px h-4 bg-gray-100 mx-1"></div>
-                                <button onClick={() => startEditingAttendee(attendee)} className="text-gray-400 hover:text-indigo-600 p-2 rounded-lg" title="Modifica"><Edit2 className="w-4 h-4" /></button>
-                                <button onClick={() => requestDeleteAttendee(attendee.id)} className="text-gray-400 hover:text-red-600 p-2 rounded-lg" title="Rimuovi"><Trash2 className="w-4 h-4" /></button>
+                                <button onClick={() => startEditingAttendee(attendee)} className="text-gray-400 hover:text-indigo-600 p-2 rounded-lg"><Edit2 className="w-4 h-4" /></button>
+                                <button onClick={() => requestDeleteAttendee(attendee.id)} className="text-gray-400 hover:text-red-600 p-2 rounded-lg"><Trash2 className="w-4 h-4" /></button>
                               </div>
                             )}
                           </td>

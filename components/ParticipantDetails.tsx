@@ -19,7 +19,7 @@ interface ParticipantDetailsProps {
 interface ParticipantSummary {
   baseAttendee: Attendee | null;
   totalPaid: number;
-  presenceCount: number; // Solo quando isPresent === true
+  presenceCount: number;
   history: { event: AppEvent; attendeeData: Attendee }[];
   lastSeen: string | null;
 }
@@ -27,13 +27,11 @@ interface ParticipantSummary {
 export const ParticipantDetails: React.FC<ParticipantDetailsProps> = ({ participantKey, events, onBack, onUpdate }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({ name: '', email: '', phone: '' });
+  const [formData, setFormData] = useState({ name: '', email: '', phone: '', gender: '' });
 
-  // Caricamento soglie fedeltà dalle impostazioni
   const vipThreshold = Number(localStorage.getItem('onbeventi_vip_threshold') || '5');
   const regularThreshold = Number(localStorage.getItem('onbeventi_regular_threshold') || '3');
 
-  // Analisi dati partecipante con tipizzazione esplicita per evitare errori TS
   const data = useMemo<ParticipantSummary>(() => {
     let baseAttendee: Attendee | null = null;
     let totalPaid = 0;
@@ -61,20 +59,19 @@ export const ParticipantDetails: React.FC<ParticipantDetailsProps> = ({ particip
 
     history.sort((a, b) => new Date(b.event.date).getTime() - new Date(a.event.date).getTime());
     
-    // Ultima presenza effettiva
     const lastSeenPresence = history.find(h => h.attendeeData.isPresent !== false);
     const lastSeen = lastSeenPresence ? lastSeenPresence.event.date : null;
 
     return { baseAttendee, totalPaid, presenceCount, history, lastSeen };
   }, [events, participantKey]);
 
-  // Sincronizza il form quando i dati di base cambiano
   useEffect(() => {
     if (data.baseAttendee) {
       setFormData({
         name: data.baseAttendee.name || '',
         email: data.baseAttendee.email || '',
-        phone: data.baseAttendee.phone || ''
+        phone: data.baseAttendee.phone || '',
+        gender: data.baseAttendee.gender || ''
       });
     }
   }, [data.baseAttendee]);
@@ -84,12 +81,18 @@ export const ParticipantDetails: React.FC<ParticipantDetailsProps> = ({ particip
     if (!formData.name) return;
     setLoading(true);
     try {
-      await updateParticipantGlobally(participantKey, formData);
+      await updateParticipantGlobally(participantKey, {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        // Passiamo anche il sesso nell'aggiornamento globale
+        gender: (formData.gender as 'M' | 'F' | 'Other') || undefined
+      } as any);
       setIsEditing(false);
       onUpdate();
     } catch (err) {
       console.error("Errore durante l'aggiornamento globale:", err);
-      alert("Errore durante l'aggiornamento. Riprova.");
+      alert("Errore durante l'aggiornamento.");
     } finally {
       setLoading(false);
     }
@@ -134,7 +137,6 @@ END:VCARD`;
 
   return (
     <div className="space-y-8 animate-fade-in pb-12">
-      {/* Navbar Scheda */}
       <div className="flex flex-col md:flex-row md:items-center justify-between bg-white p-6 rounded-2xl shadow-sm border border-gray-100 gap-4">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="p-2.5 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors border border-gray-100">
@@ -148,7 +150,7 @@ END:VCARD`;
         <div className="flex gap-2">
            {!isEditing ? (
              <>
-               <Button variant="secondary" onClick={handleExportVCard} title="Esporta in rubrica">
+               <Button variant="secondary" onClick={handleExportVCard}>
                  <Download className="w-4 h-4 mr-2" /> VCard
                </Button>
                <Button onClick={() => setIsEditing(true)}>
@@ -167,7 +169,6 @@ END:VCARD`;
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Colonna Sinistra: Profilo & Info */}
         <div className="space-y-6">
           <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 text-center relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-pink-500 to-indigo-600"></div>
@@ -193,6 +194,19 @@ END:VCARD`;
                   />
                 </div>
                 <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Sesso</label>
+                  <select 
+                    className="w-full mt-1 px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:ring-2 focus:ring-pink-500 outline-none" 
+                    value={formData.gender}
+                    onChange={e => setFormData(p => ({...p, gender: e.target.value}))}
+                  >
+                    <option value="">Non specificato</option>
+                    <option value="M">Maschio</option>
+                    <option value="F">Femmina</option>
+                    <option value="Other">Altro</option>
+                  </select>
+                </div>
+                <div>
                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email</label>
                   <input 
                     type="email" 
@@ -215,6 +229,11 @@ END:VCARD`;
               <>
                 <h2 className="text-2xl font-black text-gray-900 mb-1">{formData.name}</h2>
                 <div className="flex flex-wrap justify-center gap-2 mb-8">
+                  {formData.gender && (
+                    <span className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest ${formData.gender === 'M' ? 'bg-blue-100 text-blue-600' : formData.gender === 'F' ? 'bg-pink-100 text-pink-600' : 'bg-gray-100 text-gray-500'}`}>
+                      {formData.gender === 'M' ? 'Maschio' : formData.gender === 'F' ? 'Femmina' : 'Altro'}
+                    </span>
+                  )}
                   {isVip ? (
                     <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center shadow-sm">
                       <Trophy className="w-3 h-3 mr-1" /> VIP Platinum
@@ -237,11 +256,6 @@ END:VCARD`;
                       <p className="text-[10px] font-black text-gray-400 uppercase">Email</p>
                       <p className="text-sm font-bold text-gray-700 truncate">{formData.email || '-'}</p>
                     </div>
-                    {formData.email && (
-                      <a href={`mailto:${formData.email}`} className="opacity-0 group-hover:opacity-100 p-2 text-indigo-500 transition-opacity">
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
-                    )}
                   </div>
                   <div className="flex items-center p-3 rounded-2xl bg-gray-50 hover:bg-gray-100 transition-colors group">
                     <Phone className="w-4 h-4 text-gray-400 mr-3" />
@@ -249,21 +263,6 @@ END:VCARD`;
                       <p className="text-[10px] font-black text-gray-400 uppercase">Telefono</p>
                       <p className="text-sm font-bold text-gray-700">{formData.phone || '-'}</p>
                     </div>
-                    {formData.phone && (
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <a href={`tel:${formData.phone}`} className="p-2 text-indigo-500">
-                          <Phone className="w-4 h-4" />
-                        </a>
-                        <a 
-                          href={`https://wa.me/${formData.phone.replace(/\D/g, '')}`} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="p-2 text-green-500"
-                        >
-                          <MessageCircle className="w-4 h-4" />
-                        </a>
-                      </div>
-                    )}
                   </div>
                 </div>
               </>
@@ -280,25 +279,21 @@ END:VCARD`;
               <div className="absolute top-0 right-0 w-8 h-8 bg-indigo-50 rounded-bl-full group-hover:w-12 group-hover:h-12 transition-all"></div>
               <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Presenze</p>
               <p className="text-2xl font-black text-indigo-600">{data.presenceCount}</p>
-              {data.history.length > data.presenceCount && (
-                <p className="text-[9px] text-gray-400">su {data.history.length} prenotazioni</p>
-              )}
             </div>
           </div>
           
           <div className="bg-indigo-950 p-6 rounded-3xl text-white shadow-xl relative overflow-hidden">
-               <Calendar className="absolute -bottom-2 -right-2 w-16 h-16 text-white/5" />
-               <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-1">Ultima Presenza Reale</p>
-               <p className="text-lg font-bold">
-                 {data.lastSeen 
-                   ? new Date(data.lastSeen).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })
-                   : 'Nessuna presenza registrata'
-                 }
-               </p>
-            </div>
+             <Calendar className="absolute -bottom-2 -right-2 w-16 h-16 text-white/5" />
+             <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-1">Ultima Presenza Reale</p>
+             <p className="text-lg font-bold">
+               {data.lastSeen 
+                 ? new Date(data.lastSeen).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })
+                 : 'Nessuna presenza registrata'
+               }
+             </p>
+          </div>
         </div>
 
-        {/* Colonna Destra: Storico Eventi */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden flex flex-col h-full">
             <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
@@ -322,7 +317,7 @@ END:VCARD`;
                   {data.history.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="px-6 py-12 text-center text-gray-400 italic">
-                        Nessuna attività registrata per questo membro.
+                        Nessuna attività registrata.
                       </td>
                     </tr>
                   ) : (
@@ -375,10 +370,10 @@ END:VCARD`;
             <div className="p-6 bg-gray-50 border-t border-gray-100 mt-auto flex justify-between items-center">
               <div className="flex items-center gap-2">
                  <Tag className="w-4 h-4 text-pink-500" />
-                 <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Resoconto Community Personale</span>
+                 <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Resoconto Personale</span>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Contributo Finanziario Reale</p>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Contributo Reale</p>
                 <p className="text-xl font-black text-gray-900">€ {data.totalPaid.toFixed(2)}</p>
               </div>
             </div>

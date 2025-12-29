@@ -17,12 +17,10 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
-  // Caricamento soglie fedeltà per il calcolo dei badge in lista
   const vipThreshold = Number(localStorage.getItem('onbeventi_vip_threshold') || '5');
   const regularThreshold = Number(localStorage.getItem('onbeventi_regular_threshold') || '3');
 
   const { list, stats } = useMemo(() => {
-    // 1. Trova la data dell'evento più recente
     const sortedEvents = [...events].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const latestEventDate = sortedEvents.length > 0 ? new Date(sortedEvents[0].date).getTime() : 0;
 
@@ -53,9 +51,13 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
             existing.firstEventDate = eventTimestamp;
           }
           existing.eventTitles.push(event.title);
+          // Aggiorniamo il genere se non presente nel vecchio record ma presente nel nuovo
+          if (!existing.attendee.gender && a.gender) {
+            existing.attendee.gender = a.gender;
+          }
         } else {
           map.set(key, {
-            attendee: a,
+            attendee: { ...a },
             eventsCount: isPresent ? 1 : 0,
             totalBookings: 1,
             eventTitles: [event.title],
@@ -79,7 +81,12 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
     const fedeleCount = fullList.filter(m => m.isRegular).length;
     const vipCount = fullList.filter(m => m.isVip).length;
 
-    // --- Logica Ritorno Reale (Esclusi i nuovi dell'ultimo evento) ---
+    // --- Calcolo Generi ---
+    const maleCount = fullList.filter(m => m.attendee.gender === 'M').length;
+    const femaleCount = fullList.filter(m => m.attendee.gender === 'F').length;
+    const malePercent = totalMembers > 0 ? (maleCount / totalMembers) * 100 : 0;
+    const femalePercent = totalMembers > 0 ? (femaleCount / totalMembers) * 100 : 0;
+
     const historicalMembers = fullList.filter(m => m.firstEventDate < latestEventDate);
     const returningHistoricalCount = historicalMembers.filter(m => m.eventsCount > 1).length;
     const realReturnRate = historicalMembers.length > 0 
@@ -88,6 +95,8 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
 
     const stats = {
       totalMembers,
+      malePercent,
+      femalePercent,
       multiEventPercentage: totalMembers > 0 ? (multiEventCount / totalMembers) * 100 : 0,
       fedelePercentage: totalMembers > 0 ? (fedeleCount / totalMembers) * 100 : 0,
       vipPercentage: totalMembers > 0 ? (vipCount / totalMembers) * 100 : 0,
@@ -128,7 +137,6 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
 
   return (
     <div className="space-y-8 animate-fade-in">
-      {/* Header & Navigation */}
       <div className="flex items-center gap-4">
         <button onClick={onBack} className="p-2.5 bg-white hover:bg-gray-50 text-gray-500 rounded-xl transition-colors border border-gray-100 shadow-sm">
           <ArrowLeft className="w-5 h-5" />
@@ -139,7 +147,6 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
         </div>
       </div>
 
-      {/* Community Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
           <div className="absolute top-0 right-0 w-12 h-12 bg-indigo-50 rounded-bl-full"></div>
@@ -147,6 +154,10 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
             <Users className="w-4 h-4 text-indigo-600 mb-2" />
             <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Membri Totali</p>
             <p className="text-2xl font-black text-gray-900 mt-0.5">{stats.totalMembers}</p>
+            <div className="flex gap-2 mt-2">
+              <span className="text-[8px] font-bold text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">M: {stats.malePercent.toFixed(0)}%</span>
+              <span className="text-[8px] font-bold text-pink-500 bg-pink-50 px-1.5 py-0.5 rounded">F: {stats.femalePercent.toFixed(0)}%</span>
+            </div>
           </div>
         </div>
 
@@ -160,7 +171,6 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
           </div>
         </div>
 
-        {/* Statistica Chiave: Ritorno Reale */}
         <div className="bg-gradient-to-br from-indigo-950 to-indigo-900 p-5 rounded-3xl border border-indigo-800 shadow-xl relative overflow-hidden text-white group">
           <div className="absolute -top-2 -right-2 w-16 h-16 bg-pink-500/10 rounded-full blur-xl group-hover:scale-150 transition-transform"></div>
           <div className="relative">
@@ -194,7 +204,6 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
         </div>
       </div>
 
-      {/* Main List & Search */}
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
           <div className="relative flex-1 max-w-md">

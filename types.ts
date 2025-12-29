@@ -9,10 +9,11 @@ export interface Attendee {
   name: string;
   email?: string;
   phone?: string;
+  gender?: 'M' | 'F' | 'Other'; // Campo sesso opzionale
   status: PaymentStatus;
   registrationDate: string;
-  paidAmount?: number; // Quota effettivamente pagata (se diversa dal costo evento)
-  isPresent?: boolean; // Se il membro ha effettivamente partecipato (default: true)
+  paidAmount?: number;
+  isPresent?: boolean;
 }
 
 export interface Expense {
@@ -35,9 +36,9 @@ export interface AppEvent {
   date: string;
   time: string;
   location: string;
-  cost: number; // Ticket price per person
-  maxAttendees?: number; // Optional capacity limit
-  expenses: Expense[]; // List of operational costs
+  cost: number;
+  maxAttendees?: number;
+  expenses: Expense[];
   attendees: Attendee[];
   createdAt: string;
 }
