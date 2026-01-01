@@ -1,6 +1,7 @@
+
 import React, { useMemo, useState } from 'react';
 import { AppEvent, ExtraExpense, PaymentStatus } from '../types';
-import { Calendar, DollarSign, Users, Plus, ArrowRight, MapPin, Clock, Ticket, TrendingDown, Wallet, History, Receipt, Trash2, Save } from 'lucide-react';
+import { Calendar, DollarSign, Users, Plus, ArrowRight, MapPin, Clock, Ticket, TrendingDown, Wallet, History, Receipt, Trash2, Save, Filter, ChevronDown } from 'lucide-react';
 import { Button } from './Button';
 import { generateId, saveExtraExpense, deleteExtraExpense } from '../services/storageService';
 
@@ -16,22 +17,40 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onC
   const [showAddExtra, setShowAddExtra] = useState(false);
   const [newExtra, setNewExtra] = useState({ description: '', amount: '' });
   const [loading, setLoading] = useState(false);
+  const [selectedYear, setSelectedYear] = useState<string>('all');
+
+  // Calcolo anni disponibili per il filtro
+  const availableYears = useMemo(() => {
+    const years = new Set<string>();
+    events.forEach(e => years.add(new Date(e.date).getFullYear().toString()));
+    extraExpenses.forEach(e => years.add(new Date(e.date).getFullYear().toString()));
+    return Array.from(years).sort((a, b) => b.localeCompare(a));
+  }, [events, extraExpenses]);
 
   const stats = useMemo(() => {
     const today = new Date();
     today.setHours(0,0,0,0);
 
-    const upcoming = events
+    // Filtro eventi per anno se selezionato
+    const filteredEvents = selectedYear === 'all' 
+      ? events 
+      : events.filter(e => new Date(e.date).getFullYear().toString() === selectedYear);
+
+    // Filtro spese extra per anno se selezionato
+    const filteredExtraExpenses = selectedYear === 'all'
+      ? extraExpenses
+      : extraExpenses.filter(e => new Date(e.date).getFullYear().toString() === selectedYear);
+
+    const upcoming = filteredEvents
       .filter(e => new Date(e.date) >= today)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    const past = events
+    const past = filteredEvents
       .filter(e => new Date(e.date) < today)
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-    // GLOBAL STATS (All time)
-    // Calcolo preciso dell'incasso sommando le quote reali di ogni partecipante pagante
-    const totalRevenue = events.reduce((acc, curr) => {
+    // STATS filtrate
+    const totalRevenue = filteredEvents.reduce((acc, curr) => {
       const eventRevenue = curr.attendees.reduce((sum, a) => {
         if (a.status === PaymentStatus.PAID) {
           return sum + (a.paidAmount !== undefined ? a.paidAmount : curr.cost);
@@ -41,16 +60,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onC
       return acc + eventRevenue;
     }, 0);
 
-    const totalEventExpenses = events.reduce((acc, curr) => {
+    const totalEventExpenses = filteredEvents.reduce((acc, curr) => {
       return acc + (curr.expenses || []).reduce((sum, exp) => sum + exp.amount, 0);
     }, 0);
 
-    const totalExtraExpenses = extraExpenses.reduce((acc, curr) => acc + curr.amount, 0);
+    const totalExtraExpenses = filteredExtraExpenses.reduce((acc, curr) => acc + curr.amount, 0);
     const totalExpenses = totalEventExpenses + totalExtraExpenses;
     const totalProfit = totalRevenue - totalExpenses;
 
-    return { upcoming, past, totalRevenue, totalExpenses, totalProfit };
-  }, [events, extraExpenses]);
+    return { upcoming, past, totalRevenue, totalExpenses, totalProfit, filteredExtraExpenses };
+  }, [events, extraExpenses, selectedYear]);
 
   const handleAddExtra = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,14 +140,35 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onC
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-pink-100 to-yellow-100 rounded-full blur-3xl opacity-50 -mr-16 -mt-16 pointer-events-none"></div>
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-pink-100 to-yellow-100 rounded-full blur-3xl opacity-30 -mr-16 -mt-16 pointer-events-none"></div>
         <div className="relative z-10">
           <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Gestione <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">ONBEVENTI</span></h1>
-          <p className="text-gray-500 mt-1">Benvenuto! Ecco il resoconto globale della tua organizzazione.</p>
+          <p className="text-gray-500 mt-1">
+            {selectedYear === 'all' 
+              ? 'Resoconto totale delle attività.' 
+              : `Statistiche e attività per l'anno solare ${selectedYear}.`}
+          </p>
         </div>
-        <div className="relative z-10">
-          <Button onClick={onCreateClick} className="shadow-lg shadow-pink-200">
+        
+        <div className="relative z-10 flex flex-wrap items-center gap-3 w-full lg:w-auto">
+          {/* Yearly Filter */}
+          <div className="relative flex-1 lg:flex-none">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <select 
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-pink-500 appearance-none min-w-[140px] w-full transition-all cursor-pointer"
+            >
+              <option value="all">Tutto il tempo</option>
+              {availableYears.map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          </div>
+
+          <Button onClick={onCreateClick} className="shadow-lg shadow-pink-200 flex-1 lg:flex-none">
             <Plus className="w-5 h-5 mr-2" />
             Nuovo Evento
           </Button>
@@ -143,7 +183,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onC
             <div className="p-3 bg-green-100 w-fit rounded-xl text-green-600 mb-4 shadow-sm">
               <DollarSign className="w-6 h-6" />
             </div>
-            <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Incasso Globale</p>
+            <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Incasso {selectedYear === 'all' ? 'Globale' : selectedYear}</p>
             <p className="text-3xl font-black text-gray-900 mt-1">€ {stats.totalRevenue.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
           </div>
         </div>
@@ -154,7 +194,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onC
             <div className="p-3 bg-red-100 w-fit rounded-xl text-red-600 mb-4 shadow-sm">
               <TrendingDown className="w-6 h-6" />
             </div>
-            <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Uscite Totali</p>
+            <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Uscite {selectedYear === 'all' ? 'Totali' : selectedYear}</p>
             <p className="text-3xl font-black text-gray-900 mt-1">€ {stats.totalExpenses.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
           </div>
         </div>
@@ -165,7 +205,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onC
             <div className="p-3 bg-white/10 w-fit rounded-xl text-pink-400 mb-4 shadow-inner">
               <Wallet className="w-6 h-6" />
             </div>
-            <p className="text-xs text-indigo-300 font-bold uppercase tracking-wider">Profitto Netto Globale</p>
+            <p className="text-xs text-indigo-300 font-bold uppercase tracking-wider">Profitto {selectedYear === 'all' ? 'Globale' : selectedYear}</p>
             <p className="text-3xl font-black text-white mt-1">€ {stats.totalProfit.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
           </div>
         </div>
@@ -179,11 +219,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onC
             <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
               <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
                 <Ticket className="w-5 h-5 text-pink-500" />
-                Prossimi Eventi
+                Prossimi Eventi {selectedYear !== 'all' && `(${selectedYear})`}
               </h2>
             </div>
             {stats.upcoming.length === 0 ? (
-              <div className="p-12 text-center text-gray-400">Nessun evento in programma.</div>
+              <div className="p-12 text-center text-gray-400">Nessun evento in programma {selectedYear !== 'all' ? `per il ${selectedYear}` : ''}.</div>
             ) : (
               <div className="divide-y divide-gray-100">
                 {stats.upcoming.map(renderEventItem)}
@@ -196,11 +236,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onC
             <div className="px-6 py-5 border-b border-gray-100 bg-indigo-50/30 flex justify-between items-center">
               <h2 className="text-lg font-bold text-gray-600 flex items-center gap-2">
                 <History className="w-5 h-5 text-indigo-400" />
-                Eventi Passati
+                Eventi Passati {selectedYear !== 'all' && `(${selectedYear})`}
               </h2>
             </div>
             {stats.past.length === 0 ? (
-              <div className="p-8 text-center text-gray-400 text-sm italic">Nessun evento passato registrato.</div>
+              <div className="p-8 text-center text-gray-400 text-sm italic">Nessun evento passato registrato {selectedYear !== 'all' ? `nel ${selectedYear}` : ''}.</div>
             ) : (
               <div className="divide-y divide-gray-100">
                 {stats.past.map(renderEventItem)}
@@ -215,7 +255,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onC
             <div className="px-6 py-5 border-b border-gray-100 bg-red-50/30 flex justify-between items-center">
               <h2 className="text-md font-bold text-gray-800 flex items-center gap-2">
                 <Receipt className="w-5 h-5 text-red-500" />
-                Spese Extra
+                Spese Extra {selectedYear !== 'all' && `(${selectedYear})`}
               </h2>
               <button 
                 onClick={() => setShowAddExtra(!showAddExtra)}
@@ -245,7 +285,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onC
                       onChange={e => setNewExtra(p => ({...p, amount: e.target.value}))}
                       required
                     />
-                    <button type="submit" disabled={loading} className="bg-indigo-900 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-sm">
+                    <button type="submit" disabled={loading} className="bg-indigo-950 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-sm">
                       <Save className="w-3 h-3" />
                     </button>
                    </div>
@@ -254,11 +294,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onC
             )}
 
             <div className="max-h-[500px] overflow-y-auto">
-              {extraExpenses.length === 0 ? (
-                <p className="p-6 text-center text-xs text-gray-400 italic">Nessuna spesa extra registrata.</p>
+              {stats.filteredExtraExpenses.length === 0 ? (
+                <p className="p-6 text-center text-xs text-gray-400 italic">Nessuna spesa extra registrata {selectedYear !== 'all' ? `nel ${selectedYear}` : ''}.</p>
               ) : (
                 <div className="divide-y divide-gray-50">
-                  {extraExpenses.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(exp => (
+                  {stats.filteredExtraExpenses.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(exp => (
                     <div key={exp.id} className="p-4 group hover:bg-gray-50 flex justify-between items-center">
                       <div>
                         <p className="text-xs font-bold text-gray-800">{exp.description}</p>
@@ -278,9 +318,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onC
                 </div>
               )}
             </div>
-            {extraExpenses.length > 0 && (
+            {stats.filteredExtraExpenses.length > 0 && (
               <div className="p-3 bg-gray-50 text-right text-[10px] font-bold text-gray-500 uppercase">
-                Totale: <span className="text-red-600">€ {extraExpenses.reduce((a,b)=>a+b.amount,0).toFixed(2)}</span>
+                Totale {selectedYear === 'all' ? '' : selectedYear}: <span className="text-red-600">€ {stats.filteredExtraExpenses.reduce((a,b)=>a+b.amount,0).toFixed(2)}</span>
               </div>
             )}
           </section>
