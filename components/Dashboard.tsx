@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { AppEvent, ExtraExpense, PaymentStatus } from '../types';
-import { Calendar, DollarSign, Users, Plus, ArrowRight, MapPin, Clock, Ticket, TrendingDown, Wallet, History, Receipt, Trash2, Save, Filter, ChevronDown } from 'lucide-react';
+import { Calendar, DollarSign, Users, Plus, ArrowRight, MapPin, Clock, Ticket, TrendingDown, Wallet, History, Receipt, Trash2, Save, Filter, ChevronDown, BarChart3 } from 'lucide-react';
 import { Button } from './Button';
 import { generateId, saveExtraExpense, deleteExtraExpense } from '../services/storageService';
 
@@ -68,7 +68,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onC
     const totalExpenses = totalEventExpenses + totalExtraExpenses;
     const totalProfit = totalRevenue - totalExpenses;
 
-    return { upcoming, past, totalRevenue, totalExpenses, totalProfit, filteredExtraExpenses };
+    const totalEventsCount = filteredEvents.length;
+    const totalParticipations = filteredEvents.reduce((acc, curr) => acc + (curr.attendees ? curr.attendees.length : 0), 0);
+
+    return { 
+      upcoming, 
+      past, 
+      totalRevenue, 
+      totalExpenses, 
+      totalProfit, 
+      filteredExtraExpenses,
+      totalEventsCount,
+      totalParticipations
+    };
   }, [events, extraExpenses, selectedYear]);
 
   const handleAddExtra = async (e: React.FormEvent) => {
@@ -175,8 +187,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onC
         </div>
       </div>
 
-      {/* Global Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Global Stats Grid - Ordered: Activity, Revenue, Expenses, Profit */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* 1. Volume Attività */}
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
+           <div className="absolute top-0 right-0 w-20 h-20 bg-indigo-50 rounded-bl-full -mr-4 -mt-4"></div>
+           <div className="relative">
+            <div className="p-3 bg-indigo-100 w-fit rounded-xl text-indigo-600 mb-4 shadow-sm">
+              <BarChart3 className="w-6 h-6" />
+            </div>
+            <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Volume Attività</p>
+            <div className="mt-1">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-2xl font-black text-gray-900">{stats.totalEventsCount}</span>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Eventi</span>
+              </div>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-2xl font-black text-gray-900">{stats.totalParticipations}</span>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Presenze</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 2. Incasso Globale */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
            <div className="absolute top-0 right-0 w-20 h-20 bg-green-50 rounded-bl-full -mr-4 -mt-4"></div>
            <div className="relative">
@@ -188,6 +222,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onC
           </div>
         </div>
 
+        {/* 3. Uscite Totali */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
            <div className="absolute top-0 right-0 w-20 h-20 bg-red-50 rounded-bl-full -mr-4 -mt-4"></div>
            <div className="relative">
@@ -199,6 +234,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onC
           </div>
         </div>
 
+        {/* 4. Profitto Globale */}
         <div className="bg-indigo-950 p-6 rounded-2xl shadow-xl border border-indigo-900 relative overflow-hidden">
            <div className="absolute top-0 right-0 w-32 h-32 bg-pink-500/20 rounded-bl-full -mr-8 -mt-8 blur-xl"></div>
            <div className="relative">
