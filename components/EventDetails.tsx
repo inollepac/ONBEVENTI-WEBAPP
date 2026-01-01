@@ -265,6 +265,13 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
   
   const occupancyPercentage = event.maxAttendees ? Math.min((attendees.length / event.maxAttendees) * 100, 100) : 0;
 
+  // --- Calcolo Demografia per l'evento ---
+  const malesCount = attendees.filter(a => a.gender === 'M').length;
+  const femalesCount = attendees.filter(a => a.gender === 'F').length;
+  const totalParticipants = attendees.length;
+  const malePercent = totalParticipants > 0 ? Math.round((malesCount / totalParticipants) * 100) : 0;
+  const femalePercent = totalParticipants > 0 ? Math.round((femalesCount / totalParticipants) * 100) : 0;
+
   return (
     <div className="space-y-8 animate-fade-in pb-10 relative">
       {loading && <div className="fixed inset-0 z-[60] bg-white/50 backdrop-blur-sm flex items-center justify-center"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-pink-600"></div></div>}
@@ -342,10 +349,23 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
               <div className="flex justify-between items-center border-b border-gray-50 pb-3"><span className="text-gray-500 text-sm flex items-center gap-2 font-medium"><Clock className="w-4 h-4 text-gray-400" /> Orario</span><span className="font-semibold text-gray-800 bg-gray-50 px-3 py-1 rounded-md">{event.time}</span></div>
               <div className="flex justify-between items-center border-b border-gray-50 pb-3"><span className="text-gray-500 text-sm flex items-center gap-2 font-medium"><Euro className="w-4 h-4 text-gray-400" /> Costo Biglietto</span><span className="font-semibold text-gray-800 bg-gray-50 px-3 py-1 rounded-md">€ {event.cost}</span></div>
               <div className="flex justify-between items-center border-b border-gray-50 pb-3"><span className="text-gray-500 text-sm flex items-center gap-2 font-medium"><Users className="w-4 h-4 text-gray-400" /> Max Partecipanti</span><span className="font-semibold text-gray-800 bg-gray-50 px-3 py-1 rounded-md">{event.maxAttendees ? event.maxAttendees : '∞'}</span></div>
-              <div className="pt-4">
+              <div className="pt-4 pb-2">
                 <div className="flex justify-between text-xs font-bold text-gray-500 uppercase mb-2"><span>Occupazione</span><span>{event.maxAttendees ? Math.round(occupancyPercentage) : 100}%</span></div>
                 <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden"><div className="h-3 rounded-full bg-gradient-to-r from-pink-500 to-yellow-400 shadow-sm transition-all duration-500" style={{ width: `${event.maxAttendees ? occupancyPercentage : 100}%` }}></div></div>
                 <p className="text-xs text-center mt-2 text-gray-400">{attendees.length} iscritti su {event.maxAttendees ? event.maxAttendees : 'illimitati'}</p>
+                
+                {/* --- DEMOGRAFIA EVENTO --- */}
+                <div className="mt-6 pt-4 border-t border-gray-50 flex items-center justify-between">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Mix Genere</span>
+                  <div className="flex gap-2">
+                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 flex items-center gap-1">
+                      M: {malePercent}%
+                    </span>
+                    <span className="text-[10px] font-bold text-pink-600 bg-pink-50 px-2 py-0.5 rounded-full border border-pink-100 flex items-center gap-1">
+                      F: {femalePercent}%
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
