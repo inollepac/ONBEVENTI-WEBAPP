@@ -101,6 +101,7 @@ export default function App() {
             events={events}
             onBack={() => setViewState({ type: 'PARTICIPANTS' })}
             onUpdate={refreshData}
+            onEventClick={(eventId) => setViewState({ type: 'EVENT_DETAILS', eventId })}
           />
         );
       
@@ -129,6 +130,7 @@ export default function App() {
             onUpdate={handleEventUpdated}
             onDelete={navigateToDashboard}
             onEditEvent={() => setViewState({ type: 'EDIT_EVENT', eventId: event.id })}
+            onParticipantClick={(participantKey) => setViewState({ type: 'PARTICIPANT_DETAILS', participantKey })}
           />
         );
       

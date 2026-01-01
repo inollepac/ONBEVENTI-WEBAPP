@@ -14,6 +14,7 @@ interface ParticipantDetailsProps {
   events: AppEvent[];
   onBack: () => void;
   onUpdate: () => void;
+  onEventClick: (eventId: string) => void;
 }
 
 interface ParticipantSummary {
@@ -24,7 +25,7 @@ interface ParticipantSummary {
   lastSeen: string | null;
 }
 
-export const ParticipantDetails: React.FC<ParticipantDetailsProps> = ({ participantKey, events, onBack, onUpdate }) => {
+export const ParticipantDetails: React.FC<ParticipantDetailsProps> = ({ participantKey, events, onBack, onUpdate, onEventClick }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', gender: '' });
@@ -85,7 +86,6 @@ export const ParticipantDetails: React.FC<ParticipantDetailsProps> = ({ particip
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
-        // Passiamo anche il sesso nell'aggiornamento globale
         gender: (formData.gender as 'M' | 'F' | 'Other') || undefined
       } as any);
       setIsEditing(false);
@@ -326,7 +326,12 @@ END:VCARD`;
                       const isPresent = attendeeData.isPresent !== false;
                       const amount = attendeeData.paidAmount !== undefined ? attendeeData.paidAmount : event.cost;
                       return (
-                        <tr key={event.id} className={`hover:bg-gray-50 transition-colors group ${!isPresent ? 'bg-gray-50/30' : ''}`}>
+                        <tr 
+                          key={event.id} 
+                          className={`hover:bg-indigo-50/50 transition-colors group cursor-pointer ${!isPresent ? 'bg-gray-50/30' : ''}`}
+                          onClick={() => onEventClick(event.id)}
+                          title="Clicca per vedere i dettagli dell'evento"
+                        >
                           <td className="px-6 py-4">
                             <div className="flex flex-col">
                               <span className={`font-bold text-gray-900 text-sm group-hover:text-indigo-600 transition-colors ${!isPresent ? 'line-through text-gray-400' : ''}`}>

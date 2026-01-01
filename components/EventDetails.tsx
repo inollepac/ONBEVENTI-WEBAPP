@@ -19,9 +19,18 @@ interface EventDetailsProps {
   onUpdate: (updatedEvent: AppEvent) => void;
   onDelete: () => void;
   onEditEvent: () => void;
+  onParticipantClick: (participantKey: string) => void;
 }
 
-export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, onBack, onUpdate, onDelete, onEditEvent }) => {
+export const EventDetails: React.FC<EventDetailsProps> = ({ 
+  event, 
+  allEvents, 
+  onBack, 
+  onUpdate, 
+  onDelete, 
+  onEditEvent,
+  onParticipantClick
+}) => {
   const [showAddAttendee, setShowAddAttendee] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -439,12 +448,18 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
                       const isAbsent = attendee.isPresent === false;
                       const hasCustomAmount = attendee.paidAmount !== undefined && attendee.paidAmount !== event.cost;
                       const displayAmount = attendee.paidAmount !== undefined ? attendee.paidAmount : event.cost;
+                      const participantKey = (attendee.email || attendee.phone || attendee.name).toLowerCase().trim();
                       
                       return (
-                        <tr key={attendee.id} className={`group transition-colors ${isEditing ? 'bg-pink-50' : 'hover:bg-gray-50'} ${isAbsent ? 'opacity-60 grayscale-[0.5]' : ''}`}>
+                        <tr 
+                          key={attendee.id} 
+                          className={`group transition-colors ${isEditing ? 'bg-pink-50' : 'hover:bg-indigo-50/50 cursor-pointer'} ${isAbsent ? 'opacity-60 grayscale-[0.5]' : ''}`}
+                          onClick={() => !isEditing && onParticipantClick(participantKey)}
+                          title={!isEditing ? "Vai alla scheda membro" : ""}
+                        >
                           <td className="px-6 py-4">
                             {isEditing ? (
-                              <div className="space-y-2">
+                              <div className="space-y-2" onClick={e => e.stopPropagation()}>
                                 <input className="w-full border border-pink-300 rounded-md text-sm px-3 py-1.5" value={editAttendeeData.name} onChange={e => setEditAttendeeData(p => ({...p, name: e.target.value}))} />
                                 <select className="w-full border border-pink-300 rounded-md text-sm px-3 py-1.5 bg-white" value={editAttendeeData.gender} onChange={e => setEditAttendeeData(p => ({...p, gender: e.target.value}))}>
                                   <option value="">Sesso</option>
@@ -467,30 +482,30 @@ export const EventDetails: React.FC<EventDetailsProps> = ({ event, allEvents, on
                           </td>
                           <td className="px-6 py-4 text-xs text-gray-500">
                             {isEditing ? (
-                              <div className="flex flex-col gap-1"><input className="border rounded px-2 py-1" placeholder="Email" value={editAttendeeData.email} onChange={e => setEditAttendeeData(p => ({...p, email: e.target.value}))} /><input className="border rounded px-2 py-1" placeholder="Telefono" value={editAttendeeData.phone} onChange={e => setEditAttendeeData(p => ({...p, phone: e.target.value}))} /></div>
+                              <div className="flex flex-col gap-1" onClick={e => e.stopPropagation()}><input className="border rounded px-2 py-1" placeholder="Email" value={editAttendeeData.email} onChange={e => setEditAttendeeData(p => ({...p, email: e.target.value}))} /><input className="border rounded px-2 py-1" placeholder="Telefono" value={editAttendeeData.phone} onChange={e => setEditAttendeeData(p => ({...p, phone: e.target.value}))} /></div>
                             ) : (
                               <div>{attendee.email && <div className="flex items-center mb-0.5"><Mail className="w-3 h-3 mr-1" /> {attendee.email}</div>}{attendee.phone && <div className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {attendee.phone}</div>}</div>
                             )}
                           </td>
                           <td className="px-6 py-4 text-center">
                             {isEditing ? (
-                              <input type="number" step="0.01" className="w-24 border border-pink-300 rounded px-2 py-1 text-center font-bold text-pink-600" value={editAttendeeData.paidAmount} onChange={e => setEditAttendeeData(p => ({...p, paidAmount: e.target.value}))} placeholder={event.cost.toString()} />
+                              <input onClick={e => e.stopPropagation()} type="number" step="0.01" className="w-24 border border-pink-300 rounded px-2 py-1 text-center font-bold text-pink-600" value={editAttendeeData.paidAmount} onChange={e => setEditAttendeeData(p => ({...p, paidAmount: e.target.value}))} placeholder={event.cost.toString()} />
                             ) : (
                               <span className={`font-bold ${hasCustomAmount ? 'text-pink-600' : 'text-gray-900'}`}>€ {displayAmount.toFixed(2)}</span>
                             )}
                           </td>
                           <td className="px-6 py-4 text-center">
                              {!isEditing && (
-                              <button onClick={() => handleTogglePayment(attendee.id)} className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide transition-all ${attendee.status === PaymentStatus.PAID ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-800'}`} type="button">
+                              <button onClick={(e) => { e.stopPropagation(); handleTogglePayment(attendee.id); }} className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide transition-all ${attendee.status === PaymentStatus.PAID ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-800'}`} type="button">
                                 {attendee.status === PaymentStatus.PAID ? (<><CheckCircle className="w-3.5 h-3.5 mr-1" /> Pagato</>) : (<><XCircle className="w-3.5 h-3.5 mr-1" /> Da Pagare</>)}
                               </button>
                              )}
                           </td>
                           <td className="px-6 py-4 text-right">
                             {isEditing ? (
-                              <div className="flex justify-end gap-2"><button onClick={() => saveEditedAttendee(attendee)} className="bg-green-500 text-white p-1.5 rounded-lg"><Save className="w-4 h-4" /></button><button onClick={cancelEditingAttendee} className="bg-gray-400 text-white p-1.5 rounded-lg"><X className="w-4 h-4" /></button></div>
+                              <div className="flex justify-end gap-2" onClick={e => e.stopPropagation()}><button onClick={() => saveEditedAttendee(attendee)} className="bg-green-500 text-white p-1.5 rounded-lg"><Save className="w-4 h-4" /></button><button onClick={cancelEditingAttendee} className="bg-gray-400 text-white p-1.5 rounded-lg"><X className="w-4 h-4" /></button></div>
                             ) : (
-                              <div className="flex justify-end items-center gap-1">
+                              <div className="flex justify-end items-center gap-1" onClick={e => e.stopPropagation()}>
                                 <button 
                                   onClick={() => handleTogglePresence(attendee)} 
                                   className={`p-2 rounded-lg transition-all ${isAbsent ? 'text-red-500 bg-red-50 hover:bg-red-100' : 'text-gray-400 hover:text-green-600 hover:bg-green-50'}`}
