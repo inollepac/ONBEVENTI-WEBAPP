@@ -76,30 +76,35 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
       isRegular: item.eventsCount >= regularThreshold && item.eventsCount < vipThreshold
     }));
 
-    const totalMembers = fullList.length;
-    const multiEventCount = fullList.filter(m => m.eventsCount > 1).length;
-    const fedeleCount = fullList.filter(m => m.isRegular).length;
-    const vipCount = fullList.filter(m => m.isVip).length;
+    // Consideriamo solo i membri con almeno UNA presenza effettiva per le statistiche demografiche e di ritorno
+    const activeList = fullList.filter(m => m.eventsCount > 0);
+    const totalMembersCount = fullList.length; // Totale anagrafica
+    const activeMembersCount = activeList.length; // Totale presenti almeno una volta
 
-    // --- Calcolo Generi ---
-    const maleCount = fullList.filter(m => m.attendee.gender === 'M').length;
-    const femaleCount = fullList.filter(m => m.attendee.gender === 'F').length;
-    const malePercent = totalMembers > 0 ? (maleCount / totalMembers) * 100 : 0;
-    const femalePercent = totalMembers > 0 ? (femaleCount / totalMembers) * 100 : 0;
+    const multiEventCount = activeList.filter(m => m.eventsCount > 1).length;
+    const fedeleCount = activeList.filter(m => m.isRegular).length;
+    const vipCount = activeList.filter(m => m.isVip).length;
 
-    const historicalMembers = fullList.filter(m => m.firstEventDate < latestEventDate);
+    // --- Calcolo Generi su membri ATTIVI ---
+    const maleCount = activeList.filter(m => m.attendee.gender === 'M').length;
+    const femaleCount = activeList.filter(m => m.attendee.gender === 'F').length;
+    const malePercent = activeMembersCount > 0 ? (maleCount / activeMembersCount) * 100 : 0;
+    const femalePercent = activeMembersCount > 0 ? (femaleCount / activeMembersCount) * 100 : 0;
+
+    const historicalMembers = activeList.filter(m => m.firstEventDate < latestEventDate);
     const returningHistoricalCount = historicalMembers.filter(m => m.eventsCount > 1).length;
     const realReturnRate = historicalMembers.length > 0 
       ? (returningHistoricalCount / historicalMembers.length) * 100 
       : 0;
 
     const stats = {
-      totalMembers,
+      totalMembers: totalMembersCount,
+      activeMembersCount,
       malePercent,
       femalePercent,
-      multiEventPercentage: totalMembers > 0 ? (multiEventCount / totalMembers) * 100 : 0,
-      fedelePercentage: totalMembers > 0 ? (fedeleCount / totalMembers) * 100 : 0,
-      vipPercentage: totalMembers > 0 ? (vipCount / totalMembers) * 100 : 0,
+      multiEventPercentage: activeMembersCount > 0 ? (multiEventCount / activeMembersCount) * 100 : 0,
+      fedelePercentage: activeMembersCount > 0 ? (fedeleCount / activeMembersCount) * 100 : 0,
+      vipPercentage: activeMembersCount > 0 ? (vipCount / activeMembersCount) * 100 : 0,
       realReturnRate
     };
     
@@ -152,8 +157,8 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
           <div className="absolute top-0 right-0 w-12 h-12 bg-indigo-50 rounded-bl-full"></div>
           <div className="relative">
             <Users className="w-4 h-4 text-indigo-600 mb-2" />
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Membri Totali</p>
-            <p className="text-2xl font-black text-gray-900 mt-0.5">{stats.totalMembers}</p>
+            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Membri Attivi</p>
+            <p className="text-2xl font-black text-gray-900 mt-0.5">{stats.activeMembersCount}</p>
             <div className="flex gap-2 mt-2">
               <span className="text-[8px] font-bold text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">M: {stats.malePercent.toFixed(0)}%</span>
               <span className="text-[8px] font-bold text-pink-500 bg-pink-50 px-1.5 py-0.5 rounded">F: {stats.femalePercent.toFixed(0)}%</span>
@@ -165,9 +170,9 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
           <div className="absolute top-0 right-0 w-12 h-12 bg-pink-50 rounded-bl-full"></div>
           <div className="relative">
             <Repeat className="w-4 h-4 text-pink-500 mb-2" />
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Ritorno Lordo</p>
+            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Frequenza Attivi</p>
             <p className="text-2xl font-black text-gray-900 mt-0.5">{stats.multiEventPercentage.toFixed(1)}%</p>
-            <p className="text-[8px] text-gray-400 mt-1 font-medium italic">Su tutti gli iscritti</p>
+            <p className="text-[8px] text-gray-400 mt-1 font-medium italic">Su membri con min. 1 presenza</p>
           </div>
         </div>
 
@@ -178,7 +183,7 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
             <p className="text-[9px] font-black text-indigo-300 uppercase tracking-widest">Ritorno Reale</p>
             <p className="text-2xl font-black text-white mt-0.5">{stats.realReturnRate.toFixed(1)}%</p>
             <p className="text-[8px] text-indigo-400 mt-1 font-bold leading-tight uppercase tracking-tighter">
-              Esclusi i nuovi dell'ultimo evento
+              Calcolato su storici presenti
             </p>
           </div>
         </div>
@@ -187,7 +192,7 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
           <div className="absolute top-0 right-0 w-12 h-12 bg-green-50 rounded-bl-full"></div>
           <div className="relative">
             <Star className="w-4 h-4 text-green-500 mb-2" />
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Membri Fedeli</p>
+            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Fedeli Presenti</p>
             <p className="text-2xl font-black text-gray-900 mt-0.5">{stats.fedelePercentage.toFixed(1)}%</p>
             <p className="text-[8px] text-gray-400 mt-1 font-medium italic">Badge Fedeltà</p>
           </div>
@@ -197,7 +202,7 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
           <div className="absolute top-0 right-0 w-12 h-12 bg-yellow-50 rounded-bl-full"></div>
           <div className="relative">
             <Trophy className="w-4 h-4 text-yellow-500 mb-2" />
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Membri VIP</p>
+            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">VIP Presenti</p>
             <p className="text-2xl font-black text-gray-900 mt-0.5">{stats.vipPercentage.toFixed(1)}%</p>
             <p className="text-[8px] text-gray-400 mt-1 font-medium italic">Badge VIP</p>
           </div>
@@ -316,9 +321,9 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
                     <td className="px-6 py-4 text-center">
                       <div className="flex flex-col items-center">
                         <span className={`inline-block px-4 py-1.5 rounded-full text-xs font-black border min-w-[3rem] shadow-sm transition-all ${
-                          item.isVip 
+                          item.eventsCount >= vipThreshold 
                             ? 'bg-yellow-400 text-white border-yellow-500 scale-110' 
-                            : item.isRegular 
+                            : item.eventsCount >= regularThreshold 
                               ? 'bg-green-500 text-white border-green-600'
                               : 'bg-indigo-50 text-indigo-700 border-indigo-100'
                         }`}>

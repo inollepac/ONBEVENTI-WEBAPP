@@ -69,7 +69,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onC
     const totalProfit = totalRevenue - totalExpenses;
 
     const totalEventsCount = filteredEvents.length;
-    const totalParticipations = filteredEvents.reduce((acc, curr) => acc + (curr.attendees ? curr.attendees.length : 0), 0);
+    // Conta solo le partecipazioni REALI (isPresent !== false)
+    const totalParticipations = filteredEvents.reduce((acc, curr) => 
+      acc + (curr.attendees ? curr.attendees.filter(a => a.isPresent !== false).length : 0), 0);
 
     return { 
       upcoming, 
@@ -131,10 +133,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onC
         </div>
         <div className="flex items-center gap-8 w-full md:w-auto justify-between md:justify-end">
           <div className="text-right">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Partecipanti</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Presenti Effettivi</p>
             <div className="flex items-center justify-end gap-1">
               <Users className="w-4 h-4 text-gray-400" />
-              <p className="text-lg font-bold text-gray-900">{event.attendees.length}</p>
+              <p className="text-lg font-bold text-gray-900">{event.attendees.filter(a => a.isPresent !== false).length}</p>
             </div>
           </div>
           <div className="text-right min-w-[80px]">
