@@ -1,19 +1,21 @@
 
 import React, { useEffect, useState } from 'react';
-import { ViewState, AppEvent, ExtraExpense } from './types';
-import { getEvents, saveEvent, isCloudEnabled, getExtraExpenses } from './services/storageService';
+import { ViewState, AppEvent, ExtraExpense, EventIdea } from './types';
+import { getEvents, saveEvent, isCloudEnabled, getExtraExpenses, getEventIdeas } from './services/storageService';
 import { Dashboard } from './components/Dashboard';
 import { EventForm } from './components/EventForm';
 import { EventDetails } from './components/EventDetails';
 import { Settings } from './components/Settings';
 import { ParticipantsList } from './components/ParticipantsList';
 import { ParticipantDetails } from './components/ParticipantDetails';
-import { LayoutDashboard, Settings as SettingsIcon, Cloud, CloudOff, RefreshCw, Users, AlertTriangle, X } from 'lucide-react';
+import { IdeasView } from './components/IdeasView';
+import { LayoutDashboard, Settings as SettingsIcon, Cloud, CloudOff, RefreshCw, Users, AlertTriangle, X, Lightbulb } from 'lucide-react';
 
 export default function App() {
   const [viewState, setViewState] = useState<ViewState>({ type: 'DASHBOARD' });
   const [events, setEvents] = useState<AppEvent[]>([]);
   const [extraExpenses, setExtraExpenses] = useState<ExtraExpense[]>([]);
+  const [ideas, setIdeas] = useState<EventIdea[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCloud, setIsCloud] = useState(false);
   const [firebaseError, setFirebaseError] = useState(false);
@@ -27,12 +29,14 @@ export default function App() {
     setIsCloud(isCloudEnabled());
     setFirebaseError(false);
     try {
-      const [eventsData, expensesData] = await Promise.all([
+      const [eventsData, expensesData, ideasData] = await Promise.all([
         getEvents(),
-        getExtraExpenses()
+        getExtraExpenses(),
+        getEventIdeas()
       ]);
       setEvents(eventsData);
       setExtraExpenses(expensesData);
+      setIdeas(ideasData);
     } catch (e: any) {
       console.error("Failed to load data", e);
       if (e.message === 'FIREBASE_PERMISSION_DENIED') {
@@ -81,6 +85,16 @@ export default function App() {
             extraExpenses={extraExpenses}
             onCreateClick={() => setViewState({ type: 'CREATE_EVENT' })}
             onEventClick={(id) => setViewState({ type: 'EVENT_DETAILS', eventId: id })}
+            onIdeasClick={() => setViewState({ type: 'IDEAS' })}
+            onRefresh={refreshData}
+          />
+        );
+      
+      case 'IDEAS':
+        return (
+          <IdeasView 
+            ideas={ideas}
+            onBack={navigateToDashboard}
             onRefresh={refreshData}
           />
         );

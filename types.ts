@@ -29,6 +29,15 @@ export interface ExtraExpense {
   date: string;
 }
 
+export interface EventIdea {
+  id: string;
+  title: string;
+  description: string;
+  possibleDates: string[];
+  possibleLocations: string[];
+  createdAt: string;
+}
+
 export interface AppEvent {
   id: string;
   title: string;
@@ -50,4 +59,5 @@ export type ViewState =
   | { type: 'EVENT_DETAILS'; eventId: string }
   | { type: 'SETTINGS' }
   | { type: 'PARTICIPANTS' }
-  | { type: 'PARTICIPANT_DETAILS'; participantKey: string };
+  | { type: 'PARTICIPANT_DETAILS'; participantKey: string }
+  | { type: 'IDEAS' };

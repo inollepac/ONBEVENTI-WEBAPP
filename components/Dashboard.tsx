@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { AppEvent, ExtraExpense, PaymentStatus } from '../types';
-import { Calendar, DollarSign, Users, Plus, ArrowRight, MapPin, Clock, Ticket, TrendingDown, Wallet, History, Receipt, Trash2, Save, Filter, ChevronDown, BarChart3 } from 'lucide-react';
+import { Calendar, DollarSign, Users, Plus, ArrowRight, MapPin, Clock, Ticket, TrendingDown, Wallet, History, Receipt, Trash2, Save, Filter, ChevronDown, BarChart3, Lightbulb } from 'lucide-react';
 import { Button } from './Button';
 import { generateId, saveExtraExpense, deleteExtraExpense } from '../services/storageService';
 
@@ -10,10 +10,11 @@ interface DashboardProps {
   extraExpenses: ExtraExpense[];
   onCreateClick: () => void;
   onEventClick: (id: string) => void;
+  onIdeasClick: () => void;
   onRefresh: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onCreateClick, onEventClick, onRefresh }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onCreateClick, onEventClick, onIdeasClick, onRefresh }) => {
   const [showAddExtra, setShowAddExtra] = useState(false);
   const [newExtra, setNewExtra] = useState({ description: '', amount: '' });
   const [loading, setLoading] = useState(false);
@@ -186,6 +187,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onC
             <Plus className="w-5 h-5 mr-2" />
             Nuovo Evento
           </Button>
+
+          <button 
+            onClick={onIdeasClick}
+            className="flex items-center justify-center px-6 py-2.5 bg-indigo-50 text-indigo-700 rounded-xl font-bold border border-indigo-100 hover:bg-indigo-100 transition-all shadow-sm flex-1 lg:flex-none"
+          >
+            <Lightbulb className="w-5 h-5 mr-2 text-yellow-500" />
+            Idee
+          </button>
         </div>
       </div>
 

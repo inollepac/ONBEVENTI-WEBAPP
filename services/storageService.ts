@@ -1,10 +1,11 @@
 
-import { AppEvent, Attendee, Expense, ExtraExpense, PaymentStatus } from '../types';
+import { AppEvent, Attendee, EventIdea, Expense, ExtraExpense, PaymentStatus } from '../types';
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, getDoc, updateDoc } from "firebase/firestore";
 
 const STORAGE_KEY = 'onbeventi_data_v1';
 const EXTRA_EXPENSES_KEY = 'onbeventi_extra_expenses_v1';
+const IDEAS_KEY = 'onbeventi_ideas_v1';
 const FIREBASE_CONFIG_KEY = 'onbeventi_firebase_config';
 
 const cleanForFirebase = (obj: any): any => {
@@ -257,3 +258,69 @@ export const deleteExtraExpense = async (id: string): Promise<void> => {
 };
 
 export const isCloudEnabled = (): boolean => !!localStorage.getItem(FIREBASE_CONFIG_KEY);
+
+export const getEventIdeas = async (): Promise<EventIdea[]> => {
+  const db = getDb();
+  if (db) {
+    try {
+      const querySnapshot = await getDocs(collection(db, "event_ideas"));
+      const list: EventIdea[] = [];
+      querySnapshot.forEach((doc) => { 
+        const data = doc.data() as EventIdea;
+        data.possibleDates = data.possibleDates || [];
+        data.possibleLocations = data.possibleLocations || [];
+        list.push(data); 
+      });
+      return list;
+    } catch (e: any) { 
+      if (e.code === 'permission-denied') throw new Error('FIREBASE_PERMISSION_DENIED');
+      return []; 
+    }
+  } else {
+    const data = localStorage.getItem(IDEAS_KEY);
+    const list: EventIdea[] = data ? JSON.parse(data) : [];
+    return list.map(i => ({
+      ...i,
+      possibleDates: i.possibleDates || [],
+      possibleLocations: i.possibleLocations || []
+    }));
+  }
+};
+
+export const saveEventIdea = async (idea: EventIdea): Promise<void> => {
+  const db = getDb();
+  const ideaToSave = cleanForFirebase({
+    ...idea,
+    possibleDates: idea.possibleDates || [],
+    possibleLocations: idea.possibleLocations || []
+  });
+  
+  if (db) {
+    try {
+      await setDoc(doc(db, "event_ideas", idea.id), ideaToSave);
+    } catch (e: any) {
+      if (e.code === 'permission-denied') throw new Error('FIREBASE_PERMISSION_DENIED');
+      throw e;
+    }
+  } else {
+    const list = await getEventIdeas();
+    const idx = list.findIndex(i => i.id === idea.id);
+    if (idx >= 0) list[idx] = ideaToSave; else list.push(ideaToSave);
+    localStorage.setItem(IDEAS_KEY, JSON.stringify(list));
+  }
+};
+
+export const deleteEventIdea = async (id: string): Promise<void> => {
+  const db = getDb();
+  if (db) {
+    try {
+      await deleteDoc(doc(db, "event_ideas", id));
+    } catch (e: any) {
+      if (e.code === 'permission-denied') throw new Error('FIREBASE_PERMISSION_DENIED');
+      throw e;
+    }
+  } else {
+    const list = (await getEventIdeas()).filter(i => i.id !== id);
+    localStorage.setItem(IDEAS_KEY, JSON.stringify(list));
+  }
+};
