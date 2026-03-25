@@ -126,6 +126,7 @@ export default function App() {
         return (
           <ParticipantsList 
             events={events} 
+            onbeDays={onbeDays}
             onBack={navigateToDashboard} 
             onParticipantClick={(key) => setViewState({ type: 'PARTICIPANT_DETAILS', participantKey: key })}
           />
@@ -136,9 +137,11 @@ export default function App() {
           <ParticipantDetails 
             participantKey={viewState.participantKey}
             events={events}
+            onbeDays={onbeDays}
             onBack={() => setViewState({ type: 'PARTICIPANTS' })}
             onUpdate={refreshData}
             onEventClick={(eventId) => setViewState({ type: 'EVENT_DETAILS', eventId })}
+            onOnbeDayClick={(onbeDayId) => setViewState({ type: 'ONBEDAY_DETAILS', onbeDayId })}
           />
         );
       
@@ -163,6 +166,7 @@ export default function App() {
           <EventDetails 
             event={event} 
             allEvents={events}
+            allOnbeDays={onbeDays}
             onBack={navigateToDashboard}
             onUpdate={handleEventUpdated}
             onDelete={navigateToDashboard}
@@ -202,6 +206,7 @@ export default function App() {
           <OnbeDayDetails 
             onbeDay={onbeDay} 
             allOnbeDays={onbeDays}
+            allEvents={events}
             onBack={() => setViewState({ type: 'ONBEDAY_LIST' })}
             onUpdate={handleOnbeDayUpdated}
             onDelete={() => {

@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { AppEvent, Attendee, PaymentStatus } from '../types';
+import { AppEvent, Attendee, OnbeDay, PaymentStatus } from '../types';
 import { Button } from './Button';
 import { 
   ArrowLeft, Edit2, Save, X, Mail, Phone, Calendar, 
@@ -12,20 +12,22 @@ import { updateParticipantGlobally } from '../services/storageService';
 interface ParticipantDetailsProps {
   participantKey: string;
   events: AppEvent[];
+  onbeDays: OnbeDay[];
   onBack: () => void;
   onUpdate: () => void;
   onEventClick: (eventId: string) => void;
+  onOnbeDayClick: (onbeDayId: string) => void;
 }
 
 interface ParticipantSummary {
   baseAttendee: Attendee | null;
   totalPaid: number;
   presenceCount: number;
-  history: { event: AppEvent; attendeeData: Attendee }[];
+  history: { event: AppEvent | OnbeDay; attendeeData: Attendee; isOnbeDay?: boolean }[];
   lastSeen: string | null;
 }
 
-export const ParticipantDetails: React.FC<ParticipantDetailsProps> = ({ participantKey, events, onBack, onUpdate, onEventClick }) => {
+export const ParticipantDetails: React.FC<ParticipantDetailsProps> = ({ participantKey, events, onbeDays, onBack, onUpdate, onEventClick, onOnbeDayClick }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', gender: '' });
@@ -37,26 +39,31 @@ export const ParticipantDetails: React.FC<ParticipantDetailsProps> = ({ particip
     let baseAttendee: Attendee | null = null;
     let totalPaid = 0;
     let presenceCount = 0;
-    const history: { event: AppEvent; attendeeData: Attendee }[] = [];
+    const history: { event: AppEvent | OnbeDay; attendeeData: Attendee; isOnbeDay?: boolean }[] = [];
 
-    (events || []).forEach(event => {
-      const attendee = (event.attendees || []).find(a => 
-        (a.email || a.phone || a.name).toLowerCase().trim() === participantKey
-      );
-      
-      if (attendee) {
-        if (!baseAttendee) baseAttendee = attendee;
-        history.push({ event, attendeeData: attendee });
+    const processItems = (items: (AppEvent | OnbeDay)[], isDay: boolean) => {
+      (items || []).forEach(item => {
+        const attendee = (item.attendees || []).find((a: Attendee) => 
+          (a.email || a.phone || a.name).toLowerCase().trim() === participantKey
+        );
         
-        if (attendee.status === PaymentStatus.PAID) {
-          totalPaid += (attendee.paidAmount !== undefined ? attendee.paidAmount : event.cost);
-        }
+        if (attendee) {
+          if (!baseAttendee) baseAttendee = attendee;
+          history.push({ event: item, attendeeData: attendee, isOnbeDay: isDay });
+          
+          if (attendee.status === PaymentStatus.PAID) {
+            totalPaid += (attendee.paidAmount !== undefined ? attendee.paidAmount : item.cost);
+          }
 
-        if (attendee.isPresent !== false) {
-          presenceCount += 1;
+          if (attendee.isPresent !== false) {
+            presenceCount += 1;
+          }
         }
-      }
-    });
+      });
+    };
+
+    processItems(events, false);
+    processItems(onbeDays, true);
 
     history.sort((a, b) => new Date(b.event.date).getTime() - new Date(a.event.date).getTime());
     
@@ -64,7 +71,7 @@ export const ParticipantDetails: React.FC<ParticipantDetailsProps> = ({ particip
     const lastSeen = lastSeenPresence ? lastSeenPresence.event.date : null;
 
     return { baseAttendee, totalPaid, presenceCount, history, lastSeen };
-  }, [events, participantKey]);
+  }, [events, onbeDays, participantKey]);
 
   useEffect(() => {
     if (data.baseAttendee) {
@@ -321,7 +328,7 @@ END:VCARD`;
                       </td>
                     </tr>
                   ) : (
-                    data.history.map(({ event, attendeeData }) => {
+                    data.history.map(({ event, attendeeData, isOnbeDay }) => {
                       const isPaid = attendeeData.status === PaymentStatus.PAID;
                       const isPresent = attendeeData.isPresent !== false;
                       const amount = attendeeData.paidAmount !== undefined ? attendeeData.paidAmount : event.cost;
@@ -329,14 +336,19 @@ END:VCARD`;
                         <tr 
                           key={event.id} 
                           className={`hover:bg-indigo-50/50 transition-colors group cursor-pointer ${!isPresent ? 'bg-gray-50/30' : ''}`}
-                          onClick={() => onEventClick(event.id)}
-                          title="Clicca per vedere i dettagli dell'evento"
+                          onClick={() => isOnbeDay ? onOnbeDayClick(event.id) : onEventClick(event.id)}
+                          title={`Clicca per vedere i dettagli dell'${isOnbeDay ? 'ONBEDAY' : 'evento'}`}
                         >
                           <td className="px-6 py-4">
                             <div className="flex flex-col">
-                              <span className={`font-bold text-gray-900 text-sm group-hover:text-indigo-600 transition-colors ${!isPresent ? 'line-through text-gray-400' : ''}`}>
-                                {event.title}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className={`font-bold text-gray-900 text-sm group-hover:text-indigo-600 transition-colors ${!isPresent ? 'line-through text-gray-400' : ''}`}>
+                                  {event.title}
+                                </span>
+                                {isOnbeDay && (
+                                  <span className="bg-pink-100 text-pink-600 px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-tighter">ONBEDAY</span>
+                                )}
+                              </div>
                               <div className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5">
                                 <Briefcase className="w-3 h-3" /> {event.location} • {new Date(event.date).toLocaleDateString('it-IT')}
                               </div>

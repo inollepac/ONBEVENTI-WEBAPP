@@ -175,6 +175,7 @@ export const deleteExpense = async (eventId: string, expenseId: string): Promise
 
 export const updateParticipantGlobally = async (oldKey: string, newData: { name: string, email: string, phone: string }): Promise<void> => {
   const events = await getEvents();
+  const onbeDays = await getOnbeDays();
   
   for (const event of events) {
     let changed = false;
@@ -190,6 +191,23 @@ export const updateParticipantGlobally = async (oldKey: string, newData: { name:
     if (changed) {
       const updatedEvent = { ...event, attendees: updatedAttendees };
       await saveEvent(updatedEvent);
+    }
+  }
+
+  for (const onbeDay of onbeDays) {
+    let changed = false;
+    const updatedAttendees = onbeDay.attendees.map(a => {
+      const currentKey = (a.email || a.phone || a.name).toLowerCase().trim();
+      if (currentKey === oldKey) {
+        changed = true;
+        return { ...a, ...newData };
+      }
+      return a;
+    });
+
+    if (changed) {
+      const updatedOnbeDay = { ...onbeDay, attendees: updatedAttendees };
+      await saveOnbeDay(updatedOnbeDay);
     }
   }
 };

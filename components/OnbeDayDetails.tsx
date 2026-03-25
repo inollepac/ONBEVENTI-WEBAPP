@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { OnbeDay, Attendee, Expense, PaymentStatus } from '../types';
+import { OnbeDay, Attendee, Expense, AppEvent, PaymentStatus } from '../types';
 import { Button } from './Button';
 import { 
   ArrowLeft, UserPlus, CheckCircle, XCircle, Trash2, 
@@ -15,6 +15,7 @@ import {
 interface OnbeDayDetailsProps {
   onbeDay: OnbeDay;
   allOnbeDays: OnbeDay[];
+  allEvents: AppEvent[];
   onBack: () => void;
   onUpdate: (updatedOnbeDay: OnbeDay) => void;
   onDelete: () => void;
@@ -25,6 +26,7 @@ interface OnbeDayDetailsProps {
 export const OnbeDayDetails: React.FC<OnbeDayDetailsProps> = ({ 
   onbeDay, 
   allOnbeDays, 
+  allEvents,
   onBack, 
   onUpdate, 
   onDelete, 
@@ -58,14 +60,25 @@ export const OnbeDayDetails: React.FC<OnbeDayDetailsProps> = ({
 
   const globalParticipants = useMemo(() => {
     const map = new Map<string, Attendee>();
+    
+    // Add from ONBEDAYs
     (allOnbeDays || []).forEach(ev => {
-      (ev.attendees || []).forEach(at => {
+      (ev.attendees || []).forEach((at: Attendee) => {
         const key = (at.email || at.phone || at.name).toLowerCase().trim();
         map.set(key, at);
       });
     });
+
+    // Add from regular Events
+    (allEvents || []).forEach(ev => {
+      (ev.attendees || []).forEach((at: Attendee) => {
+        const key = (at.email || at.phone || at.name).toLowerCase().trim();
+        map.set(key, at);
+      });
+    });
+
     return Array.from(map.values());
-  }, [allOnbeDays]);
+  }, [allOnbeDays, allEvents]);
 
   const handleNameChange = (val: string) => {
     setNewAttendee(prev => ({ ...prev, name: val }));

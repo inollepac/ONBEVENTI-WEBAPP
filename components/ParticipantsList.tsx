@@ -1,10 +1,11 @@
 
 import React, { useState, useMemo } from 'react';
-import { AppEvent, Attendee } from '../types';
+import { AppEvent, Attendee, OnbeDay, PaymentStatus } from '../types';
 import { Users, Search, Mail, Phone, ArrowLeft, SortAsc, SortDesc, Trophy, Star, Repeat, Target } from 'lucide-react';
 
 interface ParticipantsListProps {
   events: AppEvent[];
+  onbeDays: OnbeDay[];
   onBack: () => void;
   onParticipantClick: (key: string) => void;
 }
@@ -12,7 +13,7 @@ interface ParticipantsListProps {
 type SortKey = 'name' | 'eventsCount';
 type SortOrder = 'asc' | 'desc';
 
-export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBack, onParticipantClick }) => {
+export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbeDays, onBack, onParticipantClick }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
@@ -21,8 +22,9 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
   const regularThreshold = Number(localStorage.getItem('onbeventi_regular_threshold') || '3');
 
   const { list, stats } = useMemo(() => {
-    const sortedEvents = [...events].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    const latestEventDate = sortedEvents.length > 0 ? new Date(sortedEvents[0].date).getTime() : 0;
+    const allItems = [...(events || []), ...(onbeDays || [])];
+    const sortedItems = allItems.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const latestEventDate = sortedItems.length > 0 ? new Date(sortedItems[0].date).getTime() : 0;
 
     const map = new Map<string, { 
       attendee: Attendee, 
@@ -35,9 +37,9 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
       isRegular: boolean
     }>();
 
-    (events || []).forEach(event => {
-      const eventTimestamp = new Date(event.date).getTime();
-      (event.attendees || []).forEach(a => {
+    const processAttendees = (attendees: Attendee[], item: AppEvent | OnbeDay) => {
+      const itemTimestamp = new Date(item.date).getTime();
+      (attendees || []).forEach(a => {
         const key = (a.email || a.phone || a.name).toLowerCase().trim();
         const isPresent = a.isPresent !== false;
         
@@ -47,10 +49,10 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
           if (isPresent) {
             existing.eventsCount += 1;
           }
-          if (eventTimestamp < existing.firstEventDate) {
-            existing.firstEventDate = eventTimestamp;
+          if (itemTimestamp < existing.firstEventDate) {
+            existing.firstEventDate = itemTimestamp;
           }
-          existing.eventTitles.push(event.title);
+          existing.eventTitles.push(item.title);
           // Aggiorniamo il genere se non presente nel vecchio record ma presente nel nuovo
           if (!existing.attendee.gender && a.gender) {
             existing.attendee.gender = a.gender;
@@ -60,15 +62,18 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
             attendee: { ...a },
             eventsCount: isPresent ? 1 : 0,
             totalBookings: 1,
-            eventTitles: [event.title],
-            firstEventDate: eventTimestamp,
+            eventTitles: [item.title],
+            firstEventDate: itemTimestamp,
             key: key,
             isVip: false,
             isRegular: false
           });
         }
       });
-    });
+    };
+
+    (events || []).forEach(event => processAttendees(event.attendees || [], event));
+    (onbeDays || []).forEach(onbeDay => processAttendees(onbeDay.attendees || [], onbeDay));
 
     const fullList = Array.from(map.values()).map(item => ({
       ...item,
@@ -129,7 +134,7 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onBa
     });
 
     return { list: filteredList, stats };
-  }, [events, searchTerm, sortKey, sortOrder, vipThreshold, regularThreshold]);
+  }, [events, onbeDays, searchTerm, sortKey, sortOrder, vipThreshold, regularThreshold]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
