@@ -1,9 +1,10 @@
 
-import { AppEvent, Attendee, EventIdea, Expense, ExtraExpense, PaymentStatus } from '../types';
+import { AppEvent, Attendee, EventIdea, Expense, ExtraExpense, OnbeDay, PaymentStatus } from '../types';
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, getDoc, updateDoc } from "firebase/firestore";
 
 const STORAGE_KEY = 'onbeventi_data_v1';
+const ONBEDAY_KEY = 'onbeventi_onbeday_v1';
 const EXTRA_EXPENSES_KEY = 'onbeventi_extra_expenses_v1';
 const IDEAS_KEY = 'onbeventi_ideas_v1';
 const FIREBASE_CONFIG_KEY = 'onbeventi_firebase_config';
@@ -257,6 +258,85 @@ export const deleteExtraExpense = async (id: string): Promise<void> => {
   }
 };
 
+
+export const addOnbeDayAttendee = async (onbeDayId: string, attendee: Attendee): Promise<OnbeDay | null> => {
+  const list = await getOnbeDays();
+  const item = list.find(e => e.id === onbeDayId);
+  if (!item) return null;
+  
+  item.attendees = [...(item.attendees || []), attendee];
+  await saveOnbeDay(item);
+  return item;
+};
+
+export const updateOnbeDayAttendee = async (onbeDayId: string, attendee: Attendee): Promise<OnbeDay | null> => {
+  const list = await getOnbeDays();
+  const item = list.find(e => e.id === onbeDayId);
+  if (!item) return null;
+  
+  item.attendees = (item.attendees || []).map(a => a.id === attendee.id ? attendee : a);
+  await saveOnbeDay(item);
+  return item;
+};
+
+export const deleteOnbeDayAttendee = async (onbeDayId: string, attendeeId: string): Promise<OnbeDay | null> => {
+  const list = await getOnbeDays();
+  const item = list.find(e => e.id === onbeDayId);
+  if (!item) return null;
+  
+  item.attendees = (item.attendees || []).filter(a => a.id !== attendeeId);
+  await saveOnbeDay(item);
+  return item;
+};
+
+export const toggleOnbeDayPaymentStatus = async (onbeDayId: string, attendeeId: string): Promise<OnbeDay | null> => {
+  const list = await getOnbeDays();
+  const item = list.find(e => e.id === onbeDayId);
+  if (!item) return null;
+  
+  item.attendees = (item.attendees || []).map(a => {
+    if (a.id === attendeeId) {
+      return { 
+        ...a, 
+        status: a.status === PaymentStatus.PAID ? PaymentStatus.PENDING : PaymentStatus.PAID 
+      };
+    }
+    return a;
+  });
+  await saveOnbeDay(item);
+  return item;
+};
+
+export const addOnbeDayExpense = async (onbeDayId: string, expense: Expense): Promise<OnbeDay | null> => {
+  const list = await getOnbeDays();
+  const item = list.find(e => e.id === onbeDayId);
+  if (!item) return null;
+  
+  item.expenses = [...(item.expenses || []), expense];
+  await saveOnbeDay(item);
+  return item;
+};
+
+export const updateOnbeDayExpense = async (onbeDayId: string, expense: Expense): Promise<OnbeDay | null> => {
+  const list = await getOnbeDays();
+  const item = list.find(e => e.id === onbeDayId);
+  if (!item) return null;
+  
+  item.expenses = (item.expenses || []).map(e => e.id === expense.id ? expense : e);
+  await saveOnbeDay(item);
+  return item;
+};
+
+export const deleteOnbeDayExpense = async (onbeDayId: string, expenseId: string): Promise<OnbeDay | null> => {
+  const list = await getOnbeDays();
+  const item = list.find(e => e.id === onbeDayId);
+  if (!item) return null;
+  
+  item.expenses = (item.expenses || []).filter(e => e.id !== expenseId);
+  await saveOnbeDay(item);
+  return item;
+};
+
 export const isCloudEnabled = (): boolean => !!localStorage.getItem(FIREBASE_CONFIG_KEY);
 
 export const getEventIdeas = async (): Promise<EventIdea[]> => {
@@ -322,5 +402,74 @@ export const deleteEventIdea = async (id: string): Promise<void> => {
   } else {
     const list = (await getEventIdeas()).filter(i => i.id !== id);
     localStorage.setItem(IDEAS_KEY, JSON.stringify(list));
+  }
+};
+
+export const getOnbeDays = async (): Promise<OnbeDay[]> => {
+  const db = getDb();
+  if (db) {
+    try {
+      const querySnapshot = await getDocs(collection(db, "onbedays"));
+      const list: OnbeDay[] = [];
+      querySnapshot.forEach((doc) => { 
+        const data = doc.data() as OnbeDay;
+        data.attendees = data.attendees || [];
+        data.expenses = data.expenses || [];
+        list.push(data); 
+      });
+      return list;
+    } catch (e: any) { 
+      console.error("Firebase fetch error", e);
+      if (e.code === 'permission-denied') {
+        throw new Error('FIREBASE_PERMISSION_DENIED');
+      }
+      return []; 
+    }
+  } else {
+    const data = localStorage.getItem(ONBEDAY_KEY);
+    const list: OnbeDay[] = data ? JSON.parse(data) : [];
+    return list.map(e => ({
+      ...e,
+      attendees: e.attendees || [],
+      expenses: e.expenses || []
+    }));
+  }
+};
+
+export const saveOnbeDay = async (onbeDay: OnbeDay): Promise<void> => {
+  const db = getDb();
+  const toSave = cleanForFirebase({
+    ...onbeDay,
+    attendees: onbeDay.attendees || [],
+    expenses: onbeDay.expenses || []
+  });
+  
+  if (db) {
+    try {
+      await setDoc(doc(db, "onbedays", onbeDay.id), toSave);
+    } catch (e: any) {
+      if (e.code === 'permission-denied') throw new Error('FIREBASE_PERMISSION_DENIED');
+      throw e;
+    }
+  } else {
+    const list = await getOnbeDays();
+    const idx = list.findIndex(e => e.id === onbeDay.id);
+    if (idx >= 0) list[idx] = toSave; else list.push(toSave);
+    localStorage.setItem(ONBEDAY_KEY, JSON.stringify(list));
+  }
+};
+
+export const deleteOnbeDay = async (id: string): Promise<void> => {
+  const db = getDb();
+  if (db) {
+    try {
+      await deleteDoc(doc(db, "onbedays", id));
+    } catch (e: any) {
+      if (e.code === 'permission-denied') throw new Error('FIREBASE_PERMISSION_DENIED');
+      throw e;
+    }
+  } else {
+    const list = (await getOnbeDays()).filter(e => e.id !== id);
+    localStorage.setItem(ONBEDAY_KEY, JSON.stringify(list));
   }
 };

@@ -11,10 +11,11 @@ interface DashboardProps {
   onCreateClick: () => void;
   onEventClick: (id: string) => void;
   onIdeasClick: () => void;
+  onOnbeDayClick: () => void;
   onRefresh: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onCreateClick, onEventClick, onIdeasClick, onRefresh }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onCreateClick, onEventClick, onIdeasClick, onOnbeDayClick, onRefresh }) => {
   const [showAddExtra, setShowAddExtra] = useState(false);
   const [newExtra, setNewExtra] = useState({ description: '', amount: '' });
   const [loading, setLoading] = useState(false);
@@ -194,6 +195,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, extraExpenses, onC
           >
             <Lightbulb className="w-5 h-5 mr-2 text-yellow-500" />
             Idee
+          </button>
+
+          <button 
+            onClick={onOnbeDayClick}
+            className="flex items-center justify-center px-6 py-2.5 bg-pink-50 text-pink-700 rounded-xl font-bold border border-pink-100 hover:bg-pink-100 transition-all shadow-sm flex-1 lg:flex-none"
+          >
+            <Plus className="w-5 h-5 mr-2 text-pink-500" />
+            ONBEDAY
           </button>
         </div>
       </div>

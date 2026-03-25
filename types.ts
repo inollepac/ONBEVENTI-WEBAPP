@@ -52,12 +52,18 @@ export interface AppEvent {
   createdAt: string;
 }
 
+export interface OnbeDay extends AppEvent {}
+
 export type ViewState = 
   | { type: 'DASHBOARD' }
   | { type: 'CREATE_EVENT' }
   | { type: 'EDIT_EVENT'; eventId: string }
   | { type: 'EVENT_DETAILS'; eventId: string }
+  | { type: 'CREATE_ONBEDAY' }
+  | { type: 'EDIT_ONBEDAY'; onbeDayId: string }
+  | { type: 'ONBEDAY_DETAILS'; onbeDayId: string }
   | { type: 'SETTINGS' }
   | { type: 'PARTICIPANTS' }
   | { type: 'PARTICIPANT_DETAILS'; participantKey: string }
-  | { type: 'IDEAS' };
+  | { type: 'IDEAS' }
+  | { type: 'ONBEDAY_LIST' };

@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
-import { ViewState, AppEvent, ExtraExpense, EventIdea } from './types';
-import { getEvents, saveEvent, isCloudEnabled, getExtraExpenses, getEventIdeas } from './services/storageService';
+import { ViewState, AppEvent, ExtraExpense, EventIdea, OnbeDay } from './types';
+import { getEvents, saveEvent, isCloudEnabled, getExtraExpenses, getEventIdeas, getOnbeDays, saveOnbeDay } from './services/storageService';
 import { Dashboard } from './components/Dashboard';
 import { EventForm } from './components/EventForm';
 import { EventDetails } from './components/EventDetails';
@@ -9,11 +9,15 @@ import { Settings } from './components/Settings';
 import { ParticipantsList } from './components/ParticipantsList';
 import { ParticipantDetails } from './components/ParticipantDetails';
 import { IdeasView } from './components/IdeasView';
-import { LayoutDashboard, Settings as SettingsIcon, Cloud, CloudOff, RefreshCw, Users, AlertTriangle, X, Lightbulb } from 'lucide-react';
+import { OnbeDayList } from './components/OnbeDayList';
+import { OnbeDayForm } from './components/OnbeDayForm';
+import { OnbeDayDetails } from './components/OnbeDayDetails';
+import { LayoutDashboard, Settings as SettingsIcon, Cloud, CloudOff, RefreshCw, Users, AlertTriangle, X, Lightbulb, Calendar as CalendarIcon } from 'lucide-react';
 
 export default function App() {
   const [viewState, setViewState] = useState<ViewState>({ type: 'DASHBOARD' });
   const [events, setEvents] = useState<AppEvent[]>([]);
+  const [onbeDays, setOnbeDays] = useState<OnbeDay[]>([]);
   const [extraExpenses, setExtraExpenses] = useState<ExtraExpense[]>([]);
   const [ideas, setIdeas] = useState<EventIdea[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -29,14 +33,16 @@ export default function App() {
     setIsCloud(isCloudEnabled());
     setFirebaseError(false);
     try {
-      const [eventsData, expensesData, ideasData] = await Promise.all([
+      const [eventsData, expensesData, ideasData, onbeDaysData] = await Promise.all([
         getEvents(),
         getExtraExpenses(),
-        getEventIdeas()
+        getEventIdeas(),
+        getOnbeDays()
       ]);
       setEvents(eventsData);
       setExtraExpenses(expensesData);
       setIdeas(ideasData);
+      setOnbeDays(onbeDaysData);
     } catch (e: any) {
       console.error("Failed to load data", e);
       if (e.message === 'FIREBASE_PERMISSION_DENIED') {
@@ -68,6 +74,22 @@ export default function App() {
     setEvents(prev => prev.map(e => e.id === updatedEvent.id ? updatedEvent : e));
   };
 
+  const handleOnbeDaySaved = async (onbeDay: OnbeDay) => {
+    setIsLoading(true);
+    try {
+      await saveOnbeDay(onbeDay);
+      setViewState({ type: 'ONBEDAY_DETAILS', onbeDayId: onbeDay.id });
+      await refreshData();
+    } catch (e: any) {
+      if (e.message === 'FIREBASE_PERMISSION_DENIED') setFirebaseError(true);
+      setIsLoading(false);
+    }
+  };
+
+  const handleOnbeDayUpdated = async (updatedOnbeDay: OnbeDay) => {
+    setOnbeDays(prev => prev.map(e => e.id === updatedOnbeDay.id ? updatedOnbeDay : e));
+  };
+
   const renderContent = () => {
     if (isLoading && events.length === 0) {
       return (
@@ -86,6 +108,7 @@ export default function App() {
             onCreateClick={() => setViewState({ type: 'CREATE_EVENT' })}
             onEventClick={(id) => setViewState({ type: 'EVENT_DETAILS', eventId: id })}
             onIdeasClick={() => setViewState({ type: 'IDEAS' })}
+            onOnbeDayClick={() => setViewState({ type: 'ONBEDAY_LIST' })}
             onRefresh={refreshData}
           />
         );
@@ -144,6 +167,48 @@ export default function App() {
             onUpdate={handleEventUpdated}
             onDelete={navigateToDashboard}
             onEditEvent={() => setViewState({ type: 'EDIT_EVENT', eventId: event.id })}
+            onParticipantClick={(participantKey) => setViewState({ type: 'PARTICIPANT_DETAILS', participantKey })}
+          />
+        );
+
+      case 'ONBEDAY_LIST':
+        return (
+          <OnbeDayList 
+            onbeDays={onbeDays}
+            onBack={navigateToDashboard}
+            onCreateClick={() => setViewState({ type: 'CREATE_ONBEDAY' })}
+            onOnbeDayClick={(id) => setViewState({ type: 'ONBEDAY_DETAILS', onbeDayId: id })}
+          />
+        );
+
+      case 'CREATE_ONBEDAY':
+        return <OnbeDayForm onSave={handleOnbeDaySaved} onCancel={() => setViewState({ type: 'ONBEDAY_LIST' })} />;
+
+      case 'EDIT_ONBEDAY':
+        const onbeDayToEdit = onbeDays.find(e => e.id === viewState.onbeDayId);
+        if (!onbeDayToEdit) return <div>ONBEDAY non trovato</div>;
+        return (
+          <OnbeDayForm
+            initialData={onbeDayToEdit}
+            onSave={handleOnbeDaySaved}
+            onCancel={() => setViewState({ type: 'ONBEDAY_DETAILS', onbeDayId: onbeDayToEdit.id })}
+          />
+        );
+
+      case 'ONBEDAY_DETAILS':
+        const onbeDay = onbeDays.find(e => e.id === viewState.onbeDayId);
+        if (!onbeDay) return <div>ONBEDAY non trovato</div>;
+        return (
+          <OnbeDayDetails 
+            onbeDay={onbeDay} 
+            allOnbeDays={onbeDays}
+            onBack={() => setViewState({ type: 'ONBEDAY_LIST' })}
+            onUpdate={handleOnbeDayUpdated}
+            onDelete={() => {
+              navigateToDashboard();
+              setViewState({ type: 'ONBEDAY_LIST' });
+            }}
+            onEditOnbeDay={() => setViewState({ type: 'EDIT_ONBEDAY', onbeDayId: onbeDay.id })}
             onParticipantClick={(participantKey) => setViewState({ type: 'PARTICIPANT_DETAILS', participantKey })}
           />
         );
@@ -212,6 +277,18 @@ export default function App() {
             >
               <Users className="w-5 h-5 mr-3" />
               Membri
+            </button>
+
+            <button 
+              onClick={() => setViewState({ type: 'ONBEDAY_LIST' })}
+              className={`w-full flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 font-medium ${
+                ['ONBEDAY_LIST', 'ONBEDAY_DETAILS', 'CREATE_ONBEDAY', 'EDIT_ONBEDAY'].includes(viewState.type)
+                  ? 'bg-gradient-to-r from-pink-600 to-purple-700 text-white shadow-lg border border-pink-500/30' 
+                  : 'text-indigo-200 hover:bg-white/5 hover:text-white border border-transparent'
+              }`}
+            >
+              <CalendarIcon className="w-5 h-5 mr-3" />
+              ONBEDAY
             </button>
             
             <button 
