@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { EventIdea } from '../types';
-import { ArrowLeft, Plus, Trash2, Calendar, MapPin, AlignLeft, Save, X } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Calendar, MapPin, AlignLeft, Save, X, Pencil } from 'lucide-react';
 import { Button } from './Button';
 import { generateId, saveEventIdea, deleteEventIdea } from '../services/storageService';
 
@@ -12,35 +12,56 @@ interface IdeasViewProps {
 }
 
 export const IdeasView: React.FC<IdeasViewProps> = ({ ideas, onBack, onRefresh }) => {
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editingIdeaId, setEditingIdeaId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [newIdea, setNewIdea] = useState({
+  const [formData, setFormData] = useState({
     title: '',
     description: '',
     possibleDates: [''],
     possibleLocations: ['']
   });
 
-  const handleAddIdea = async (e: React.FormEvent) => {
+  const handleSaveIdea = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newIdea.title) return;
+    if (!formData.title) return;
     
     setLoading(true);
     try {
-      await saveEventIdea({
-        id: generateId(),
-        title: newIdea.title,
-        description: newIdea.description,
-        possibleDates: newIdea.possibleDates.filter(d => d.trim() !== ''),
-        possibleLocations: newIdea.possibleLocations.filter(l => l.trim() !== ''),
-        createdAt: new Date().toISOString()
-      });
-      setNewIdea({ title: '', description: '', possibleDates: [''], possibleLocations: [''] });
-      setShowAddForm(false);
+      const ideaToSave: EventIdea = {
+        id: editingIdeaId || generateId(),
+        title: formData.title,
+        description: formData.description,
+        possibleDates: formData.possibleDates.filter(d => d.trim() !== ''),
+        possibleLocations: formData.possibleLocations.filter(l => l.trim() !== ''),
+        createdAt: editingIdeaId 
+          ? ideas.find(i => i.id === editingIdeaId)?.createdAt || new Date().toISOString()
+          : new Date().toISOString()
+      };
+
+      await saveEventIdea(ideaToSave);
+      resetForm();
       onRefresh();
     } finally {
       setLoading(false);
     }
+  };
+
+  const resetForm = () => {
+    setFormData({ title: '', description: '', possibleDates: [''], possibleLocations: [''] });
+    setShowForm(false);
+    setEditingIdeaId(null);
+  };
+
+  const handleEditClick = (idea: EventIdea) => {
+    setFormData({
+      title: idea.title,
+      description: idea.description,
+      possibleDates: idea.possibleDates.length > 0 ? [...idea.possibleDates] : [''],
+      possibleLocations: idea.possibleLocations.length > 0 ? [...idea.possibleLocations] : ['']
+    });
+    setEditingIdeaId(idea.id);
+    setShowForm(true);
   };
 
   const handleDeleteIdea = async (id: string) => {
@@ -50,33 +71,39 @@ export const IdeasView: React.FC<IdeasViewProps> = ({ ideas, onBack, onRefresh }
   };
 
   const addDateField = () => {
-    setNewIdea(prev => ({ ...prev, possibleDates: [...prev.possibleDates, ''] }));
+    setFormData(prev => ({ ...prev, possibleDates: [...prev.possibleDates, ''] }));
   };
 
   const addLocationField = () => {
-    setNewIdea(prev => ({ ...prev, possibleLocations: [...prev.possibleLocations, ''] }));
+    setFormData(prev => ({ ...prev, possibleLocations: [...prev.possibleLocations, ''] }));
   };
 
   const updateDateField = (index: number, value: string) => {
-    const updated = [...newIdea.possibleDates];
+    const updated = [...formData.possibleDates];
     updated[index] = value;
-    setNewIdea(prev => ({ ...prev, possibleDates: updated }));
+    setFormData(prev => ({ ...prev, possibleDates: updated }));
   };
 
   const updateLocationField = (index: number, value: string) => {
-    const updated = [...newIdea.possibleLocations];
+    const updated = [...formData.possibleLocations];
     updated[index] = value;
-    setNewIdea(prev => ({ ...prev, possibleLocations: updated }));
+    setFormData(prev => ({ ...prev, possibleLocations: updated }));
   };
 
   const removeDateField = (index: number) => {
-    if (newIdea.possibleDates.length <= 1) return;
-    setNewIdea(prev => ({ ...prev, possibleDates: prev.possibleDates.filter((_, i) => i !== index) }));
+    if (formData.possibleDates.length <= 1) {
+      setFormData(prev => ({ ...prev, possibleDates: [''] }));
+      return;
+    }
+    setFormData(prev => ({ ...prev, possibleDates: prev.possibleDates.filter((_, i) => i !== index) }));
   };
 
   const removeLocationField = (index: number) => {
-    if (newIdea.possibleLocations.length <= 1) return;
-    setNewIdea(prev => ({ ...prev, possibleLocations: prev.possibleLocations.filter((_, i) => i !== index) }));
+    if (formData.possibleLocations.length <= 1) {
+      setFormData(prev => ({ ...prev, possibleLocations: [''] }));
+      return;
+    }
+    setFormData(prev => ({ ...prev, possibleLocations: prev.possibleLocations.filter((_, i) => i !== index) }));
   };
 
   return (
@@ -86,7 +113,7 @@ export const IdeasView: React.FC<IdeasViewProps> = ({ ideas, onBack, onRefresh }
           <ArrowLeft className="w-5 h-5 mr-2" />
           Torna alla Dashboard
         </button>
-        <Button onClick={() => setShowAddForm(true)} className="shadow-lg shadow-pink-200">
+        <Button onClick={() => setShowForm(true)} className="shadow-lg shadow-pink-200">
           <Plus className="w-5 h-5 mr-2" />
           Nuova Idea
         </Button>
@@ -97,25 +124,27 @@ export const IdeasView: React.FC<IdeasViewProps> = ({ ideas, onBack, onRefresh }
         <p className="text-gray-500 mt-1">Annota qui le tue ispirazioni per i prossimi eventi ONBEVENTI.</p>
       </div>
 
-      {showAddForm && (
+      {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-scale-up">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-indigo-50/50">
-              <h2 className="text-xl font-black text-indigo-950">Nuova Idea Evento</h2>
-              <button onClick={() => setShowAddForm(false)} className="p-2 hover:bg-white rounded-full transition-colors">
+              <h2 className="text-xl font-black text-indigo-950">
+                {editingIdeaId ? 'Modifica Idea Evento' : 'Nuova Idea Evento'}
+              </h2>
+              <button onClick={resetForm} className="p-2 hover:bg-white rounded-full transition-colors">
                 <X className="w-6 h-6 text-gray-400" />
               </button>
             </div>
             
-            <form onSubmit={handleAddIdea} className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+            <form onSubmit={handleSaveIdea} className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
               <div>
                 <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Titolo Evento</label>
                 <input 
                   autoFocus
                   className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-pink-500 outline-none transition-all font-bold text-gray-800"
                   placeholder="es. Workshop Fotografia Notturna"
-                  value={newIdea.title}
-                  onChange={e => setNewIdea(p => ({...p, title: e.target.value}))}
+                  value={formData.title}
+                  onChange={e => setFormData(p => ({...p, title: e.target.value}))}
                   required
                 />
               </div>
@@ -125,15 +154,15 @@ export const IdeasView: React.FC<IdeasViewProps> = ({ ideas, onBack, onRefresh }
                 <textarea 
                   className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-pink-500 outline-none transition-all text-gray-700 min-h-[100px]"
                   placeholder="Descrivi l'idea, il target, gli obiettivi..."
-                  value={newIdea.description}
-                  onChange={e => setNewIdea(p => ({...p, description: e.target.value}))}
+                  value={formData.description}
+                  onChange={e => setFormData(p => ({...p, description: e.target.value}))}
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-3">
                   <label className="block text-xs font-black text-gray-400 uppercase tracking-widest">Date Papabili</label>
-                  {newIdea.possibleDates.map((date, idx) => (
+                  {formData.possibleDates.map((date, idx) => (
                     <div key={idx} className="flex gap-2">
                       <input 
                         type="text"
@@ -154,7 +183,7 @@ export const IdeasView: React.FC<IdeasViewProps> = ({ ideas, onBack, onRefresh }
 
                 <div className="space-y-3">
                   <label className="block text-xs font-black text-gray-400 uppercase tracking-widest">Luoghi Papabili</label>
-                  {newIdea.possibleLocations.map((loc, idx) => (
+                  {formData.possibleLocations.map((loc, idx) => (
                     <div key={idx} className="flex gap-2">
                       <input 
                         type="text"
@@ -181,11 +210,11 @@ export const IdeasView: React.FC<IdeasViewProps> = ({ ideas, onBack, onRefresh }
                   className="flex-1 bg-gradient-to-r from-pink-600 to-purple-700 text-white py-4 rounded-xl font-bold shadow-lg hover:shadow-pink-200 transition-all flex items-center justify-center disabled:opacity-50"
                 >
                   <Save className="w-5 h-5 mr-2" />
-                  Salva Idea
+                  {editingIdeaId ? 'Aggiorna Idea' : 'Salva Idea'}
                 </button>
                 <button 
                   type="button"
-                  onClick={() => setShowAddForm(false)}
+                  onClick={resetForm}
                   className="px-6 py-4 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-all"
                 >
                   Annulla
@@ -208,12 +237,20 @@ export const IdeasView: React.FC<IdeasViewProps> = ({ ideas, onBack, onRefresh }
               <div className="p-6 space-y-4">
                 <div className="flex justify-between items-start">
                   <h3 className="text-xl font-black text-gray-900 leading-tight">{idea.title}</h3>
-                  <button 
-                    onClick={() => handleDeleteIdea(idea.id)}
-                    className="p-2 text-gray-200 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex gap-1">
+                    <button 
+                      onClick={() => handleEditClick(idea)}
+                      className="p-2 text-gray-200 hover:text-indigo-500 hover:bg-indigo-50 rounded-lg transition-all"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteIdea(idea.id)}
+                      className="p-2 text-gray-200 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
                 {idea.description && (
