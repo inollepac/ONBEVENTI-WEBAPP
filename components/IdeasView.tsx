@@ -121,7 +121,7 @@ export const IdeasView: React.FC<IdeasViewProps> = ({ ideas, onBack, onRefresh }
 
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
         <h1 className="text-2xl font-black text-gray-900">💡 Idee per Futuri Eventi</h1>
-        <p className="text-gray-500 mt-1">Annota qui le tue ispirazioni per i prossimi eventi ONBEVENTI.</p>
+        <p className="text-gray-500 mt-1">Annota qui le tue ispirazioni per i prossimi eventi ONBE.</p>
       </div>
 
       {showForm && (

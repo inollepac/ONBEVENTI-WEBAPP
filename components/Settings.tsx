@@ -15,13 +15,13 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const existingFirebase = localStorage.getItem('onbeventi_firebase_config');
+    const existingFirebase = localStorage.getItem('onbe_firebase_config');
     if (existingFirebase) setFirebaseConfig(existingFirebase);
 
-    const existingVip = localStorage.getItem('onbeventi_vip_threshold');
+    const existingVip = localStorage.getItem('onbe_vip_threshold');
     if (existingVip) setVipThreshold(existingVip);
 
-    const existingRegular = localStorage.getItem('onbeventi_regular_threshold');
+    const existingRegular = localStorage.getItem('onbe_regular_threshold');
     if (existingRegular) setRegularThreshold(existingRegular);
   }, []);
 
@@ -34,15 +34,15 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
       return;
     }
 
-    localStorage.setItem('onbeventi_vip_threshold', vipThreshold);
-    localStorage.setItem('onbeventi_regular_threshold', regularThreshold);
+    localStorage.setItem('onbe_vip_threshold', vipThreshold);
+    localStorage.setItem('onbe_regular_threshold', regularThreshold);
     
     const configInput = firebaseConfig.trim();
     if (configInput) {
       try {
         const parsed = JSON.parse(configInput);
         if (parsed.apiKey) {
-           localStorage.setItem('onbeventi_firebase_config', JSON.stringify(parsed, null, 2));
+           localStorage.setItem('onbe_firebase_config', JSON.stringify(parsed, null, 2));
         } else {
           const extractedConfig: Record<string, string> = {};
           ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'].forEach(key => {
@@ -50,13 +50,13 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
             const match = configInput.match(regex);
             if (match && match[2]) extractedConfig[key] = match[2];
           });
-          if (extractedConfig.apiKey) localStorage.setItem('onbeventi_firebase_config', JSON.stringify(extractedConfig));
+          if (extractedConfig.apiKey) localStorage.setItem('onbe_firebase_config', JSON.stringify(extractedConfig));
         }
       } catch (err) {
-        localStorage.setItem('onbeventi_firebase_config', configInput);
+        localStorage.setItem('onbe_firebase_config', configInput);
       }
     } else {
-      localStorage.removeItem('onbeventi_firebase_config');
+      localStorage.removeItem('onbe_firebase_config');
     }
 
     setSaved(true);

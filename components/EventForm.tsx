@@ -101,7 +101,7 @@ export const EventForm: React.FC<EventFormProps> = ({ onSave, onCancel, initialD
           <h2 className="text-2xl font-bold text-gray-900">
             {isEditing ? 'Modifica Evento' : 'Crea Nuovo Evento'}
           </h2>
-          <p className="text-gray-500 text-sm mt-1">Compila i dettagli qui sotto per configurare il tuo evento ONBEVENTI.</p>
+          <p className="text-gray-500 text-sm mt-1">Compila i dettagli qui sotto per configurare il tuo evento ONBE.</p>
         </div>
         
         <form onSubmit={handleSubmit} className="p-8 space-y-8">
@@ -120,7 +120,7 @@ export const EventForm: React.FC<EventFormProps> = ({ onSave, onCancel, initialD
                     name="title"
                     required
                     className={inputClasses}
-                    placeholder="Es. Cena di Gala ONBEVENTI"
+                    placeholder="Es. Cena di Gala ONBE"
                     value={formData.title}
                     onChange={handleChange}
                   />

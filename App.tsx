@@ -104,6 +104,7 @@ export default function App() {
         return (
           <Dashboard 
             events={events} 
+            onbeDays={onbeDays}
             extraExpenses={extraExpenses}
             onCreateClick={() => setViewState({ type: 'CREATE_EVENT' })}
             onEventClick={(id) => setViewState({ type: 'EVENT_DETAILS', eventId: id })}
@@ -251,7 +252,7 @@ export default function App() {
                  <div className="flex flex-col leading-none">
                     <div className="flex items-baseline gap-0.5">
                       <span className="text-2xl font-black text-pink-400">ON</span>
-                      <span className="text-2xl font-black text-yellow-400">BEVENTI</span>
+                      <span className="text-2xl font-black text-yellow-400">BE</span>
                     </div>
                     <span className="text-[0.5rem] font-bold text-indigo-300 uppercase tracking-widest text-right">Event Manager</span>
                  </div>

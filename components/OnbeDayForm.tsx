@@ -163,7 +163,7 @@ export const OnbeDayForm: React.FC<OnbeDayFormProps> = ({ onSave, onCancel, init
                     name="location"
                     required
                     className={inputClasses}
-                    placeholder="Es. Sede ONBEVENTI"
+                    placeholder="Es. Sede ONBE"
                     value={formData.location}
                     onChange={handleChange}
                   />

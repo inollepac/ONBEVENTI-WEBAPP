@@ -3,11 +3,11 @@ import { AppEvent, Attendee, EventIdea, Expense, ExtraExpense, OnbeDay, PaymentS
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, getDoc, updateDoc } from "firebase/firestore";
 
-const STORAGE_KEY = 'onbeventi_data_v1';
-const ONBEDAY_KEY = 'onbeventi_onbeday_v1';
-const EXTRA_EXPENSES_KEY = 'onbeventi_extra_expenses_v1';
-const IDEAS_KEY = 'onbeventi_ideas_v1';
-const FIREBASE_CONFIG_KEY = 'onbeventi_firebase_config';
+const STORAGE_KEY = 'onbe_data_v1';
+const ONBEDAY_KEY = 'onbe_onbeday_v1';
+const EXTRA_EXPENSES_KEY = 'onbe_extra_expenses_v1';
+const IDEAS_KEY = 'onbe_ideas_v1';
+const FIREBASE_CONFIG_KEY = 'onbe_firebase_config';
 
 const cleanForFirebase = (obj: any): any => {
   if (Array.isArray(obj)) {

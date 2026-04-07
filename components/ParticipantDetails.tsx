@@ -32,8 +32,8 @@ export const ParticipantDetails: React.FC<ParticipantDetailsProps> = ({ particip
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', gender: '' });
 
-  const vipThreshold = Number(localStorage.getItem('onbeventi_vip_threshold') || '5');
-  const regularThreshold = Number(localStorage.getItem('onbeventi_regular_threshold') || '3');
+  const vipThreshold = Number(localStorage.getItem('onbe_vip_threshold') || '5');
+  const regularThreshold = Number(localStorage.getItem('onbe_regular_threshold') || '3');
 
   const data = useMemo<ParticipantSummary>(() => {
     let baseAttendee: Attendee | null = null;
@@ -113,7 +113,7 @@ VERSION:3.0
 FN:${name}
 TEL;TYPE=CELL:${phone}
 EMAIL:${email}
-ORG:ONBEVENTI CRM
+ORG:ONBE CRM
 NOTE:Presenze effettive: ${data.presenceCount}
 END:VCARD`;
     
@@ -151,7 +151,7 @@ END:VCARD`;
           </button>
           <div>
             <h1 className="text-2xl font-black text-gray-900 leading-tight">Profilo Membro</h1>
-            <p className="text-xs text-indigo-500 font-bold uppercase tracking-wider">ONBEVENTI Community System</p>
+            <p className="text-xs text-indigo-500 font-bold uppercase tracking-wider">ONBE Community System</p>
           </div>
         </div>
         <div className="flex gap-2">

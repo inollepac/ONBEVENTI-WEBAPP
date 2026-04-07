@@ -18,8 +18,8 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
-  const vipThreshold = Number(localStorage.getItem('onbeventi_vip_threshold') || '5');
-  const regularThreshold = Number(localStorage.getItem('onbeventi_regular_threshold') || '3');
+  const vipThreshold = Number(localStorage.getItem('onbe_vip_threshold') || '5');
+  const regularThreshold = Number(localStorage.getItem('onbe_regular_threshold') || '3');
 
   const { list, stats } = useMemo(() => {
     const allItems = [...(events || []), ...(onbeDays || [])];

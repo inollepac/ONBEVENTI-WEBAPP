@@ -8,7 +8,7 @@ export const generateEventDescription = async (title: string, mood: string): Pro
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
     const prompt = `
-      Sei un copywriter esperto per un'organizzazione di eventi chiamata 'ONBEVENTI'.
+      Sei un copywriter esperto per un'organizzazione di eventi chiamata 'ONBE'.
       Scrivi una descrizione breve, accattivante ed emozionante (massimo 3 frasi) per un evento intitolato: "${title}".
       Il tono deve essere: ${mood}.
       Usa delle emoji appropriate.
