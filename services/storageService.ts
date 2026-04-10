@@ -9,6 +9,37 @@ const EXTRA_EXPENSES_KEY = 'onbe_extra_expenses_v1';
 const IDEAS_KEY = 'onbe_ideas_v1';
 const FIREBASE_CONFIG_KEY = 'onbe_firebase_config';
 
+// Migration logic for rebranding from onbeventi to onbe
+const migrateData = () => {
+  const keys = [
+    { old: 'onbeventi_data_v1', new: STORAGE_KEY },
+    { old: 'onbeventi_onbeday_v1', new: ONBEDAY_KEY },
+    { old: 'onbeventi_extra_expenses_v1', new: EXTRA_EXPENSES_KEY },
+    { old: 'onbeventi_ideas_v1', new: IDEAS_KEY },
+    { old: 'onbeventi_firebase_config', new: FIREBASE_CONFIG_KEY },
+    { old: 'onbeventi_api_key', new: 'onbe_api_key' },
+    { old: 'onbeventi_vip_threshold', new: 'onbe_vip_threshold' },
+    { old: 'onbeventi_regular_threshold', new: 'onbe_regular_threshold' },
+  ];
+
+  keys.forEach(({ old, new: newKey }) => {
+    const oldData = localStorage.getItem(old);
+    const newData = localStorage.getItem(newKey);
+    
+    // If old data exists and new data doesn't, migrate it
+    if (oldData && !newData) {
+      localStorage.setItem(newKey, oldData);
+      // We keep the old data for safety for now, or we could remove it
+      console.log(`Migrated data from ${old} to ${newKey}`);
+    }
+  });
+};
+
+// Run migration immediately
+if (typeof window !== 'undefined') {
+  migrateData();
+}
+
 const cleanForFirebase = (obj: any): any => {
   if (Array.isArray(obj)) {
     return obj.map(cleanForFirebase);
