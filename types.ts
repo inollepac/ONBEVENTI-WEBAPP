@@ -66,4 +66,5 @@ export type ViewState =
   | { type: 'PARTICIPANTS' }
   | { type: 'PARTICIPANT_DETAILS'; participantKey: string }
   | { type: 'IDEAS' }
-  | { type: 'ONBEDAY_LIST' };
+  | { type: 'ONBEDAY_LIST' }
+  | { type: 'ONBEVENTI_LIST' };

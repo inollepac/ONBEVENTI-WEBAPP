@@ -13,12 +13,13 @@ interface DashboardProps {
   onEventClick: (id: string) => void;
   onIdeasClick: () => void;
   onOnbeDayClick: () => void;
+  onOnbeventiClick?: () => void;
   onRefresh: () => void;
 }
 
 type StatsCategory = 'totale' | 'onbeventi' | 'onbeday';
 
-export const Dashboard: React.FC<DashboardProps> = ({ events, onbeDays, extraExpenses, onCreateClick, onEventClick, onIdeasClick, onOnbeDayClick, onRefresh }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ events, onbeDays, extraExpenses, onCreateClick, onEventClick, onIdeasClick, onOnbeDayClick, onOnbeventiClick, onRefresh }) => {
   const [showAddExtra, setShowAddExtra] = useState(false);
   const [newExtra, setNewExtra] = useState({ description: '', amount: '' });
   const [loading, setLoading] = useState(false);
@@ -334,6 +335,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, onbeDays, extraExp
               <Ticket className="w-6 h-6 text-pink-500" />
               Eventi ONBE
             </h2>
+            <button 
+              onClick={() => onOnbeventiClick?.()} 
+              className="text-xs font-bold text-pink-600 hover:text-pink-800 flex items-center gap-1 transition-colors"
+            >
+              Vedi tutti <ArrowRight className="w-3 h-3" />
+            </button>
           </div>
           
           <div className="space-y-6">

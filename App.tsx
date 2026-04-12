@@ -5,6 +5,7 @@ import { getEvents, saveEvent, isCloudEnabled, getExtraExpenses, getEventIdeas, 
 import { Dashboard } from './components/Dashboard';
 import { EventForm } from './components/EventForm';
 import { EventDetails } from './components/EventDetails';
+import { EventsList } from './components/EventsList';
 import { Settings } from './components/Settings';
 import { ParticipantsList } from './components/ParticipantsList';
 import { ParticipantDetails } from './components/ParticipantDetails';
@@ -12,7 +13,7 @@ import { IdeasView } from './components/IdeasView';
 import { OnbeDayList } from './components/OnbeDayList';
 import { OnbeDayForm } from './components/OnbeDayForm';
 import { OnbeDayDetails } from './components/OnbeDayDetails';
-import { LayoutDashboard, Settings as SettingsIcon, Cloud, CloudOff, RefreshCw, Users, AlertTriangle, X, Lightbulb, Calendar as CalendarIcon } from 'lucide-react';
+import { LayoutDashboard, Settings as SettingsIcon, Cloud, CloudOff, RefreshCw, Users, AlertTriangle, X, Lightbulb, Calendar as CalendarIcon, Ticket } from 'lucide-react';
 
 export default function App() {
   const [viewState, setViewState] = useState<ViewState>({ type: 'DASHBOARD' });
@@ -110,6 +111,7 @@ export default function App() {
             onEventClick={(id) => setViewState({ type: 'EVENT_DETAILS', eventId: id })}
             onIdeasClick={() => setViewState({ type: 'IDEAS' })}
             onOnbeDayClick={() => setViewState({ type: 'ONBEDAY_LIST' })}
+            onOnbeventiClick={() => setViewState({ type: 'ONBEVENTI_LIST' })}
             onRefresh={refreshData}
           />
         );
@@ -173,6 +175,16 @@ export default function App() {
             onDelete={navigateToDashboard}
             onEditEvent={() => setViewState({ type: 'EDIT_EVENT', eventId: event.id })}
             onParticipantClick={(participantKey) => setViewState({ type: 'PARTICIPANT_DETAILS', participantKey })}
+          />
+        );
+
+      case 'ONBEVENTI_LIST':
+        return (
+          <EventsList 
+            events={events}
+            onBack={navigateToDashboard}
+            onCreateClick={() => setViewState({ type: 'CREATE_EVENT' })}
+            onEventClick={(id) => setViewState({ type: 'EVENT_DETAILS', eventId: id })}
           />
         );
 
@@ -264,13 +276,25 @@ export default function App() {
             <button 
               onClick={navigateToDashboard}
               className={`w-full flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 font-medium ${
-                ['DASHBOARD', 'EVENT_DETAILS', 'CREATE_EVENT', 'EDIT_EVENT'].includes(viewState.type)
+                viewState.type === 'DASHBOARD'
                   ? 'bg-gradient-to-r from-pink-600 to-purple-700 text-white shadow-lg border border-pink-500/30' 
                   : 'text-indigo-200 hover:bg-white/5 hover:text-white border border-transparent'
               }`}
             >
               <LayoutDashboard className="w-5 h-5 mr-3" />
               Dashboard
+            </button>
+
+            <button 
+              onClick={() => setViewState({ type: 'ONBEVENTI_LIST' })}
+              className={`w-full flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 font-medium ${
+                ['ONBEVENTI_LIST', 'EVENT_DETAILS', 'CREATE_EVENT', 'EDIT_EVENT'].includes(viewState.type)
+                  ? 'bg-gradient-to-r from-pink-600 to-purple-700 text-white shadow-lg border border-pink-500/30' 
+                  : 'text-indigo-200 hover:bg-white/5 hover:text-white border border-transparent'
+              }`}
+            >
+              <Ticket className="w-5 h-5 mr-3" />
+              ONBEVENTI
             </button>
 
             <button 
