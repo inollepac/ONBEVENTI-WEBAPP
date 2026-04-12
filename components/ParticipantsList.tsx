@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { AppEvent, Attendee, OnbeDay, PaymentStatus } from '../types';
-import { Users, Search, Mail, Phone, ArrowLeft, SortAsc, SortDesc, Trophy, Star, Repeat, Target } from 'lucide-react';
+import { Users, Search, Mail, Phone, ArrowLeft, SortAsc, SortDesc, Trophy, Star, Repeat, Target, LayoutGrid, Ticket, Calendar, Filter, ChevronDown } from 'lucide-react';
 
 interface ParticipantsListProps {
   events: AppEvent[];
@@ -12,18 +12,43 @@ interface ParticipantsListProps {
 
 type SortKey = 'name' | 'eventsCount';
 type SortOrder = 'asc' | 'desc';
+type StatsCategory = 'generale' | 'onbeventi' | 'onbeday';
 
 export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbeDays, onBack, onParticipantClick }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  const [statsCategory, setStatsCategory] = useState<StatsCategory>('generale');
+  const [selectedYear, setSelectedYear] = useState<string>('all');
 
   const vipThreshold = Number(localStorage.getItem('onbe_vip_threshold') || '5');
   const regularThreshold = Number(localStorage.getItem('onbe_regular_threshold') || '3');
 
+  const availableYears = useMemo(() => {
+    const years = new Set<string>();
+    events.forEach(e => years.add(new Date(e.date).getFullYear().toString()));
+    onbeDays.forEach(e => years.add(new Date(e.date).getFullYear().toString()));
+    return Array.from(years).sort((a, b) => b.localeCompare(a));
+  }, [events, onbeDays]);
+
   const { list, stats } = useMemo(() => {
-    const allItems = [...(events || []), ...(onbeDays || [])];
-    const sortedItems = allItems.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const filterByYear = (items: any[]) => selectedYear === 'all' 
+      ? items 
+      : items.filter(e => new Date(e.date).getFullYear().toString() === selectedYear);
+
+    const filteredEvents = filterByYear(events || []);
+    const filteredOnbeDays = filterByYear(onbeDays || []);
+
+    let targetItems: (AppEvent | OnbeDay)[] = [];
+    if (statsCategory === 'generale') {
+      targetItems = [...filteredEvents, ...filteredOnbeDays];
+    } else if (statsCategory === 'onbeventi') {
+      targetItems = filteredEvents;
+    } else {
+      targetItems = filteredOnbeDays;
+    }
+
+    const sortedItems = targetItems.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const latestEventDate = sortedItems.length > 0 ? new Date(sortedItems[0].date).getTime() : 0;
 
     const map = new Map<string, { 
@@ -72,8 +97,7 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
       });
     };
 
-    (events || []).forEach(event => processAttendees(event.attendees || [], event));
-    (onbeDays || []).forEach(onbeDay => processAttendees(onbeDay.attendees || [], onbeDay));
+    targetItems.forEach(item => processAttendees(item.attendees || [], item));
 
     const fullList = Array.from(map.values()).map(item => ({
       ...item,
@@ -134,7 +158,7 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
     });
 
     return { list: filteredList, stats };
-  }, [events, onbeDays, searchTerm, sortKey, sortOrder, vipThreshold, regularThreshold]);
+  }, [events, onbeDays, searchTerm, sortKey, sortOrder, vipThreshold, regularThreshold, statsCategory, selectedYear]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -153,7 +177,52 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
         </button>
         <div>
           <h1 className="text-2xl font-black text-gray-900 tracking-tight">Anagrafica & Community</h1>
-          <p className="text-sm text-gray-500">Analisi della partecipazione e fedeltà dei membri.</p>
+          <p className="text-sm text-gray-500">
+            Analisi {statsCategory === 'generale' ? 'generale' : statsCategory} {selectedYear === 'all' ? 'totale' : `per l'anno ${selectedYear}`}.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        {/* Stats Category Toggle */}
+        <div className="flex items-center gap-2 p-1 bg-white rounded-2xl border border-gray-100 w-fit shadow-sm">
+          <button 
+            onClick={() => setStatsCategory('generale')}
+            className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${statsCategory === 'generale' ? 'bg-indigo-950 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
+          >
+            <LayoutGrid className="w-4 h-4" />
+            Generale
+          </button>
+          <button 
+            onClick={() => setStatsCategory('onbeventi')}
+            className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${statsCategory === 'onbeventi' ? 'bg-pink-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
+          >
+            <Ticket className="w-4 h-4" />
+            ONBEVENTI
+          </button>
+          <button 
+            onClick={() => setStatsCategory('onbeday')}
+            className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${statsCategory === 'onbeday' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
+          >
+            <Calendar className="w-4 h-4" />
+            ONBEDAY
+          </button>
+        </div>
+
+        {/* Yearly Filter */}
+        <div className="relative w-full md:w-auto">
+          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          <select 
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(e.target.value)}
+            className="pl-10 pr-10 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-pink-500 appearance-none min-w-[160px] w-full transition-all cursor-pointer shadow-sm"
+          >
+            <option value="all">Tutte le annate</option>
+            {availableYears.map(year => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
         </div>
       </div>
 
