@@ -9,7 +9,8 @@ import {
 } from 'lucide-react';
 import { 
   addAttendee, togglePaymentStatus, deleteAttendee, 
-  deleteEvent, addExpense, deleteExpense, updateAttendee, updateExpense, generateId, toggleWaiverStatus, saveEvent
+  deleteEvent, addExpense, deleteExpense, updateAttendee, updateExpense, generateId, toggleWaiverStatus, saveEvent,
+  addWaitingListAttendee, deleteWaitingListAttendee, promoteFromWaitingList
 } from '../services/storageService';
 
 interface EventDetailsProps {
@@ -34,6 +35,7 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
   onParticipantClick
 }) => {
   const [showAddAttendee, setShowAddAttendee] = useState(false);
+  const [viewMode, setViewMode] = useState<'attendees' | 'waiting'>('attendees');
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [loading, setLoading] = useState(false);
   
@@ -109,10 +111,13 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
     
     setLoading(true);
     
-    if (event.maxAttendees && (event.attendees || []).length >= event.maxAttendees) {
-      alert("Numero massimo di partecipanti raggiunto.");
-      setLoading(false);
-      return;
+    const isLimitReached = event.maxAttendees && (event.attendees || []).length >= event.maxAttendees;
+    
+    if (isLimitReached) {
+      if (!confirm("Numero massimo di partecipanti raggiunto. Vuoi aggiungere questa persona alla lista d'attesa?")) {
+        setLoading(false);
+        return;
+      }
     }
 
     const attendee: Attendee = {
@@ -124,20 +129,49 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
       paidAmount: newAttendee.paidAmount ? Number(newAttendee.paidAmount) : undefined,
       status: PaymentStatus.PENDING,
       registrationDate: new Date().toISOString(),
-      isPresent: true
+      isPresent: !isLimitReached
     };
     
     try {
-      const updated = await addAttendee(event.id, attendee);
+      const updated = isLimitReached 
+        ? await addWaitingListAttendee(event.id, attendee)
+        : await addAttendee(event.id, attendee);
+        
       if (updated) {
         onUpdate(updated);
         setNewAttendee({ name: '', email: '', phone: '', paidAmount: '', gender: '' });
         setShowAddAttendee(false);
         setSuggestions([]);
+        if (isLimitReached) setViewMode('waiting');
       }
     } catch (err) {
       console.error("Error adding attendee:", err);
       alert("Errore durante l'aggiunta.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePromoteFromWaiting = async (attendeeId: string) => {
+    if (event.maxAttendees && (event.attendees || []).length >= event.maxAttendees) {
+      alert("Impossibile promuovere: il numero massimo di partecipanti è già stato raggiunto.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const updated = await promoteFromWaitingList(event.id, attendeeId);
+      if (updated) onUpdate(updated);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveFromWaiting = async (attendeeId: string) => {
+    if (!confirm("Sei sicuro di voler rimuovere questa persona dalla lista d'attesa?")) return;
+    setLoading(true);
+    try {
+      const updated = await deleteWaitingListAttendee(event.id, attendeeId);
+      if (updated) onUpdate(updated);
     } finally {
       setLoading(false);
     }
@@ -273,6 +307,7 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
   };
 
   const attendees = event.attendees || [];
+  const waitingList = event.waitingList || [];
   const expenses = event.expenses || [];
   
   const totalCollected = attendees.reduce((acc, a) => {
@@ -443,8 +478,23 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
         <div className="lg:col-span-2 flex flex-col h-full">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full overflow-hidden">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white">
-              <div className="flex items-center gap-3"><div className="p-2 bg-pink-100 text-pink-600 rounded-lg"><Users className="w-5 h-5" /></div><div><h2 className="font-bold text-gray-900 text-lg">Lista Membri Iscritti</h2><p className="text-xs text-gray-500">Gestisci partecipazioni e pagamenti</p></div></div>
+              <div className="flex items-center gap-3"><div className="p-2 bg-pink-100 text-pink-600 rounded-lg"><Users className="w-5 h-5" /></div><div><h2 className="font-bold text-gray-900 text-lg">Membri Partecipanti</h2><p className="text-xs text-gray-500">Gestisci partecipazioni e pagamenti</p></div></div>
               <div className="flex gap-2">
+                <div className="flex bg-gray-100 p-1 rounded-xl mr-2">
+                  <button 
+                    onClick={() => setViewMode('attendees')} 
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'attendees' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    Iscritti ({attendees.length})
+                  </button>
+                  <button 
+                    onClick={() => setViewMode('waiting')} 
+                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'waiting' ? 'bg-white text-pink-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                  >
+                    In Attesa ({waitingList.length})
+                    {waitingList.length > 0 && <span className="w-2 h-2 bg-pink-500 rounded-full animate-pulse"></span>}
+                  </button>
+                </div>
                 <button 
                   onClick={handleQuickToggleWaiverReq}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm ${event.requiresWaiver ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-white text-gray-400 border-gray-100 hover:border-indigo-200'}`}
@@ -454,7 +504,7 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
                   {event.requiresWaiver ? 'Liberatoria: ON' : 'Liberatoria: OFF'}
                 </button>
                 <div className="w-px h-8 bg-gray-100 mx-1"></div>
-                <Button onClick={() => setShowAddAttendee(!showAddAttendee)} variant="primary" className="text-xs" disabled={!!event.maxAttendees && attendees.length >= event.maxAttendees} type="button"><UserPlus className="w-4 h-4 mr-2" /> Aggiungi</Button>
+                <Button onClick={() => setShowAddAttendee(!showAddAttendee)} variant="primary" className="text-xs" type="button"><UserPlus className="w-4 h-4 mr-2" /> Aggiungi</Button>
               </div>
             </div>
 
@@ -507,9 +557,10 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {attendees.length === 0 ? (
+                  {viewMode === 'attendees' ? (
+                   attendees.length === 0 ? (
                     <tr><td colSpan={event.requiresWaiver ? 6 : 5} className="px-6 py-16 text-center text-gray-400">La lista è vuota</td></tr>
-                  ) : (
+                   ) : (
                     attendees.map(attendee => {
                       const isEditing = editingAttendeeId === attendee.id;
                       const isAbsent = attendee.isPresent === false;
@@ -606,6 +657,61 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
                         </tr>
                       );
                     })
+                   )
+                  ) : (
+                   waitingList.length === 0 ? (
+                    <tr><td colSpan={event.requiresWaiver ? 6 : 5} className="px-6 py-16 text-center text-gray-400">Nessuno in lista d'attesa</td></tr>
+                   ) : (
+                    waitingList.map(attendee => {
+                      const participantKey = (attendee.email || attendee.phone || attendee.name).toLowerCase().trim();
+                      return (
+                        <tr 
+                          key={attendee.id} 
+                          className="group transition-colors hover:bg-pink-50/50 cursor-pointer"
+                          onClick={() => onParticipantClick(participantKey)}
+                        >
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-gray-900 italic">{attendee.name}</span>
+                              {attendee.gender && (
+                                <span className={`text-[8px] px-1 rounded font-black ${attendee.gender === 'M' ? 'bg-blue-100 text-blue-600' : attendee.gender === 'F' ? 'bg-pink-100 text-pink-600' : 'bg-gray-100 text-gray-500'}`}>
+                                  {attendee.gender}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-xs text-gray-500">
+                            <div>{attendee.email && <div className="flex items-center mb-0.5"><Mail className="w-3 h-3 mr-1" /> {attendee.email}</div>}{attendee.phone && <div className="flex items-center"><Phone className="w-3 h-3 mr-1" /> {attendee.phone}</div>}</div>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="text-gray-400 italic text-sm">€ {attendee.paidAmount?.toFixed(2) || event.cost.toFixed(2)}</span>
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span className="bg-orange-50 text-orange-600 text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-full border border-orange-100">In Attesa</span>
+                          </td>
+                          {event.requiresWaiver && <td className="px-6 py-4 border-l border-gray-50"></td>}
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex justify-end items-center gap-2" onClick={e => e.stopPropagation()}>
+                              <button 
+                                onClick={() => handlePromoteFromWaiting(attendee.id)} 
+                                className="p-2 bg-green-50 text-green-600 hover:bg-green-100 rounded-lg transition-all"
+                                title="Inserisci nella lista iscritti"
+                              >
+                                <UserCheck className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={() => handleRemoveFromWaiting(attendee.id)} 
+                                className="p-2 bg-red-50 text-red-500 hover:bg-red-100 rounded-lg transition-all"
+                                title="Rimuovi dalla lista d'attesa"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                   )
                   )}
                 </tbody>
               </table>

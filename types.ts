@@ -50,6 +50,7 @@ export interface AppEvent {
   maxAttendees?: number;
   expenses: Expense[];
   attendees: Attendee[];
+  waitingList: Attendee[];
   requiresWaiver?: boolean;
   createdAt: string;
 }

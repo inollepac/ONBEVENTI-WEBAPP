@@ -79,6 +79,7 @@ export const getEvents = async (): Promise<AppEvent[]> => {
       querySnapshot.forEach((doc) => { 
         const data = doc.data() as AppEvent;
         data.attendees = data.attendees || [];
+        data.waitingList = data.waitingList || [];
         data.expenses = data.expenses || [];
         events.push(data); 
       });
@@ -96,6 +97,7 @@ export const getEvents = async (): Promise<AppEvent[]> => {
     return events.map(e => ({
       ...e,
       attendees: e.attendees || [],
+      waitingList: e.waitingList || [],
       expenses: e.expenses || []
     }));
   }
@@ -106,6 +108,7 @@ export const saveEvent = async (event: AppEvent): Promise<void> => {
   const eventToSave = cleanForFirebase({
     ...event,
     attendees: event.attendees || [],
+    waitingList: event.waitingList || [],
     expenses: event.expenses || []
   });
   
@@ -152,6 +155,40 @@ export const deleteAttendee = async (eventId: string, attendeeId: string): Promi
   if (!event) return null;
   
   event.attendees = (event.attendees || []).filter(a => a.id !== attendeeId);
+  await saveEvent(event);
+  return event;
+};
+
+export const addWaitingListAttendee = async (eventId: string, attendee: Attendee): Promise<AppEvent | null> => {
+  const events = await getEvents();
+  const event = events.find(e => e.id === eventId);
+  if (!event) return null;
+  
+  event.waitingList = [...(event.waitingList || []), attendee];
+  await saveEvent(event);
+  return event;
+};
+
+export const deleteWaitingListAttendee = async (eventId: string, attendeeId: string): Promise<AppEvent | null> => {
+  const events = await getEvents();
+  const event = events.find(e => e.id === eventId);
+  if (!event) return null;
+  
+  event.waitingList = (event.waitingList || []).filter(a => a.id !== attendeeId);
+  await saveEvent(event);
+  return event;
+};
+
+export const promoteFromWaitingList = async (eventId: string, attendeeId: string): Promise<AppEvent | null> => {
+  const events = await getEvents();
+  const event = events.find(e => e.id === eventId);
+  if (!event) return null;
+  
+  const attendee = (event.waitingList || []).find(a => a.id === attendeeId);
+  if (!attendee) return null;
+  
+  event.waitingList = (event.waitingList || []).filter(a => a.id !== attendeeId);
+  event.attendees = [...(event.attendees || []), { ...attendee, isPresent: true }];
   await saveEvent(event);
   return event;
 };
@@ -228,34 +265,46 @@ export const updateParticipantGlobally = async (oldKey: string, newData: { name:
   
   for (const event of events) {
     let changed = false;
-    const updatedAttendees = event.attendees.map(a => {
-      const currentKey = (a.email || a.phone || a.name).toLowerCase().trim();
-      if (currentKey === oldKey) {
-        changed = true;
-        return { ...a, ...newData };
-      }
-      return a;
-    });
+    
+    const updateList = (list: Attendee[]) => {
+      return list.map(a => {
+        const currentKey = (a.email || a.phone || a.name).toLowerCase().trim();
+        if (currentKey === oldKey) {
+          changed = true;
+          return { ...a, ...newData };
+        }
+        return a;
+      });
+    };
+
+    const updatedAttendees = updateList(event.attendees || []);
+    const updatedWaitingList = updateList(event.waitingList || []);
 
     if (changed) {
-      const updatedEvent = { ...event, attendees: updatedAttendees };
+      const updatedEvent = { ...event, attendees: updatedAttendees, waitingList: updatedWaitingList };
       await saveEvent(updatedEvent);
     }
   }
 
   for (const onbeDay of onbeDays) {
     let changed = false;
-    const updatedAttendees = onbeDay.attendees.map(a => {
-      const currentKey = (a.email || a.phone || a.name).toLowerCase().trim();
-      if (currentKey === oldKey) {
-        changed = true;
-        return { ...a, ...newData };
-      }
-      return a;
-    });
+    
+    const updateList = (list: Attendee[]) => {
+      return list.map(a => {
+        const currentKey = (a.email || a.phone || a.name).toLowerCase().trim();
+        if (currentKey === oldKey) {
+          changed = true;
+          return { ...a, ...newData };
+        }
+        return a;
+      });
+    };
+
+    const updatedAttendees = updateList(onbeDay.attendees || []);
+    const updatedWaitingList = updateList(onbeDay.waitingList || []);
 
     if (changed) {
-      const updatedOnbeDay = { ...onbeDay, attendees: updatedAttendees };
+      const updatedOnbeDay = { ...onbeDay, attendees: updatedAttendees, waitingList: updatedWaitingList };
       await saveOnbeDay(updatedOnbeDay);
     }
   }
@@ -352,6 +401,40 @@ export const deleteOnbeDayAttendee = async (onbeDayId: string, attendeeId: strin
   if (!item) return null;
   
   item.attendees = (item.attendees || []).filter(a => a.id !== attendeeId);
+  await saveOnbeDay(item);
+  return item;
+};
+
+export const addOnbeDayWaitingListAttendee = async (onbeDayId: string, attendee: Attendee): Promise<OnbeDay | null> => {
+  const list = await getOnbeDays();
+  const item = list.find(e => e.id === onbeDayId);
+  if (!item) return null;
+  
+  item.waitingList = [...(item.waitingList || []), attendee];
+  await saveOnbeDay(item);
+  return item;
+};
+
+export const deleteOnbeDayWaitingListAttendee = async (onbeDayId: string, attendeeId: string): Promise<OnbeDay | null> => {
+  const list = await getOnbeDays();
+  const item = list.find(e => e.id === onbeDayId);
+  if (!item) return null;
+  
+  item.waitingList = (item.waitingList || []).filter(a => a.id !== attendeeId);
+  await saveOnbeDay(item);
+  return item;
+};
+
+export const promoteOnbeDayFromWaitingList = async (onbeDayId: string, attendeeId: string): Promise<OnbeDay | null> => {
+  const list = await getOnbeDays();
+  const item = list.find(e => e.id === onbeDayId);
+  if (!item) return null;
+  
+  const attendee = (item.waitingList || []).find(a => a.id === attendeeId);
+  if (!attendee) return null;
+  
+  item.waitingList = (item.waitingList || []).filter(a => a.id !== attendeeId);
+  item.attendees = [...(item.attendees || []), { ...attendee, isPresent: true }];
   await saveOnbeDay(item);
   return item;
 };
@@ -499,6 +582,7 @@ export const getOnbeDays = async (): Promise<OnbeDay[]> => {
       querySnapshot.forEach((doc) => { 
         const data = doc.data() as OnbeDay;
         data.attendees = data.attendees || [];
+        data.waitingList = data.waitingList || [];
         data.expenses = data.expenses || [];
         list.push(data); 
       });
@@ -516,6 +600,7 @@ export const getOnbeDays = async (): Promise<OnbeDay[]> => {
     return list.map(e => ({
       ...e,
       attendees: e.attendees || [],
+      waitingList: e.waitingList || [],
       expenses: e.expenses || []
     }));
   }
@@ -526,6 +611,7 @@ export const saveOnbeDay = async (onbeDay: OnbeDay): Promise<void> => {
   const toSave = cleanForFirebase({
     ...onbeDay,
     attendees: onbeDay.attendees || [],
+    waitingList: onbeDay.waitingList || [],
     expenses: onbeDay.expenses || []
   });
   

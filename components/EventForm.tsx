@@ -77,6 +77,7 @@ export const EventForm: React.FC<EventFormProps> = ({ onSave, onCancel, initialD
       description: formData.description,
       requiresWaiver: formData.requiresWaiver,
       attendees: initialData ? initialData.attendees : [],
+      waitingList: initialData ? (initialData.waitingList || []) : [],
       expenses: initialData ? (initialData.expenses || []) : [],
       createdAt: initialData ? initialData.createdAt : new Date().toISOString()
     };
