@@ -367,7 +367,9 @@ END:VCARD`;
                             )}
                           </td>
                           <td className="px-6 py-4 text-center">
-                            {attendeeData.hasWaiver ? (
+                            {!event.requiresWaiver ? (
+                              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-tight italic">Non richiesta</span>
+                            ) : attendeeData.hasWaiver ? (
                               <span className="flex items-center justify-center text-indigo-600 text-[10px] font-black uppercase tracking-wider">
                                 <ShieldCheck className="w-3 h-3 mr-1" /> Ricevuta
                               </span>

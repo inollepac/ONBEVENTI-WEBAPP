@@ -3,7 +3,7 @@ import { AppEvent } from '../types';
 import { Button } from './Button';
 import { generateEventDescription } from '../services/geminiService';
 import { generateId } from '../services/storageService';
-import { Wand2, ArrowLeft, Calendar, MapPin, Clock, DollarSign, Users, Type } from 'lucide-react';
+import { Wand2, ArrowLeft, Calendar, MapPin, Clock, DollarSign, Users, Type, ShieldCheck } from 'lucide-react';
 
 interface EventFormProps {
   onSave: (event: AppEvent) => Promise<void>; // Updated to Promise
@@ -24,6 +24,7 @@ export const EventForm: React.FC<EventFormProps> = ({ onSave, onCancel, initialD
     cost: '',
     maxAttendees: '',
     description: '',
+    requiresWaiver: false,
   });
 
   useEffect(() => {
@@ -36,13 +37,18 @@ export const EventForm: React.FC<EventFormProps> = ({ onSave, onCancel, initialD
         cost: initialData.cost.toString(),
         maxAttendees: initialData.maxAttendees ? initialData.maxAttendees.toString() : '',
         description: initialData.description,
+        requiresWaiver: initialData.requiresWaiver || false,
       });
     }
   }, [initialData]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target as any;
+    if (type === 'checkbox') {
+      setFormData(prev => ({ ...prev, [name]: (e.target as HTMLInputElement).checked }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleGenerateDescription = async () => {
@@ -69,6 +75,7 @@ export const EventForm: React.FC<EventFormProps> = ({ onSave, onCancel, initialD
       cost: Number(formData.cost),
       maxAttendees: formData.maxAttendees ? Number(formData.maxAttendees) : undefined,
       description: formData.description,
+      requiresWaiver: formData.requiresWaiver,
       attendees: initialData ? initialData.attendees : [],
       expenses: initialData ? (initialData.expenses || []) : [],
       createdAt: initialData ? initialData.createdAt : new Date().toISOString()
@@ -180,6 +187,28 @@ export const EventForm: React.FC<EventFormProps> = ({ onSave, onCancel, initialD
             <h3 className="text-sm font-bold text-indigo-900 uppercase tracking-wider border-b border-gray-100 pb-2">Dettagli & Partecipazione</h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="col-span-2 p-4 bg-indigo-50/50 rounded-xl border border-indigo-100 flex items-center justify-between group hover:border-indigo-300 transition-all cursor-pointer" onClick={() => setFormData(p => ({...p, requiresWaiver: !p.requiresWaiver}))}>
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${formData.requiresWaiver ? 'bg-indigo-600 text-white' : 'bg-white text-gray-400 border border-gray-200'}`}>
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-gray-900 italic">Richiedi Liberatoria</p>
+                    <p className="text-xs text-gray-500">Se attivo, verrà mostrata la colonna per monitorare le firme dei partecipanti.</p>
+                  </div>
+                </div>
+                <div className={`relative w-12 h-6 rounded-full transition-colors ${formData.requiresWaiver ? 'bg-pink-500' : 'bg-gray-200'}`}>
+                  <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${formData.requiresWaiver ? 'translate-x-6' : ''}`}></div>
+                </div>
+                <input 
+                  type="checkbox" 
+                  name="requiresWaiver" 
+                  className="hidden" 
+                  checked={formData.requiresWaiver} 
+                  onChange={handleChange} 
+                />
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Costo Biglietto (€)</label>
                 <div className="relative">

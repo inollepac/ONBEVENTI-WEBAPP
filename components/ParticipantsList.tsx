@@ -65,10 +65,12 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
 
     const processAttendees = (attendees: Attendee[], item: AppEvent | OnbeDay) => {
       const itemTimestamp = new Date(item.date).getTime();
+      const waiverRequired = item.requiresWaiver === true;
+      
       (attendees || []).forEach(a => {
         const key = (a.email || a.phone || a.name).toLowerCase().trim();
         const isPresent = a.isPresent !== false;
-        const needsWaiver = !a.hasWaiver;
+        const needsWaiver = waiverRequired && !a.hasWaiver;
         
         if (map.has(key)) {
           const existing = map.get(key)!;
@@ -120,6 +122,7 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
     const fedeleCount = activeList.filter(m => m.isRegular).length;
     const vipCount = activeList.filter(m => m.isVip).length;
     const totalMissingWaivers = targetItems.reduce((acc, item) => {
+      if (item.requiresWaiver !== true) return acc;
       return acc + (item.attendees || []).filter(a => !a.hasWaiver).length;
     }, 0);
 

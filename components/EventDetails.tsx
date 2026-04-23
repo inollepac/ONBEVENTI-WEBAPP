@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { 
   addAttendee, togglePaymentStatus, deleteAttendee, 
-  deleteEvent, addExpense, deleteExpense, updateAttendee, updateExpense, generateId, toggleWaiverStatus
+  deleteEvent, addExpense, deleteExpense, updateAttendee, updateExpense, generateId, toggleWaiverStatus, saveEvent
 } from '../services/storageService';
 
 interface EventDetailsProps {
@@ -288,6 +288,17 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
   
   const occupancyPercentage = event.maxAttendees ? Math.min((attendees.length / event.maxAttendees) * 100, 100) : 0;
 
+  const handleQuickToggleWaiverReq = async () => {
+    setLoading(true);
+    try {
+      const updatedEvent = { ...event, requiresWaiver: !event.requiresWaiver };
+      await saveEvent(updatedEvent);
+      onUpdate(updatedEvent);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // --- Calcolo Demografia REALE per l'evento (solo presenti) ---
   const presentAttendees = attendees.filter(a => a.isPresent !== false);
   const malesCount = presentAttendees.filter(a => a.gender === 'M').length;
@@ -433,7 +444,18 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full overflow-hidden">
             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white">
               <div className="flex items-center gap-3"><div className="p-2 bg-pink-100 text-pink-600 rounded-lg"><Users className="w-5 h-5" /></div><div><h2 className="font-bold text-gray-900 text-lg">Lista Membri Iscritti</h2><p className="text-xs text-gray-500">Gestisci partecipazioni e pagamenti</p></div></div>
-              <Button onClick={() => setShowAddAttendee(!showAddAttendee)} variant="primary" className="text-xs" disabled={!!event.maxAttendees && attendees.length >= event.maxAttendees} type="button"><UserPlus className="w-4 h-4 mr-2" /> Aggiungi</Button>
+              <div className="flex gap-2">
+                <button 
+                  onClick={handleQuickToggleWaiverReq}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm ${event.requiresWaiver ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-white text-gray-400 border-gray-100 hover:border-indigo-200'}`}
+                  title={event.requiresWaiver ? "Liberatoria richiesta per questo evento" : "Liberatoria NON richiesta"}
+                >
+                  <ShieldCheck className={`w-3.5 h-3.5 ${event.requiresWaiver ? 'text-white' : 'text-gray-300'}`} />
+                  {event.requiresWaiver ? 'Liberatoria: ON' : 'Liberatoria: OFF'}
+                </button>
+                <div className="w-px h-8 bg-gray-100 mx-1"></div>
+                <Button onClick={() => setShowAddAttendee(!showAddAttendee)} variant="primary" className="text-xs" disabled={!!event.maxAttendees && attendees.length >= event.maxAttendees} type="button"><UserPlus className="w-4 h-4 mr-2" /> Aggiungi</Button>
+              </div>
             </div>
 
             {showAddAttendee && (
@@ -480,13 +502,13 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
                     <th className="px-6 py-4">CONTATTI</th>
                     <th className="px-6 py-4 text-center">QUOTA PAGATA</th>
                     <th className="px-6 py-4 text-center">STATO</th>
-                    <th className="px-6 py-4 text-center border-l border-indigo-900/30">LIBERATORIA</th>
+                    {event.requiresWaiver && <th className="px-6 py-4 text-center border-l border-indigo-900/30">LIBERATORIA</th>}
                     <th className="px-6 py-4 text-right">AZIONI</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {attendees.length === 0 ? (
-                    <tr><td colSpan={6} className="px-6 py-16 text-center text-gray-400">La lista è vuota</td></tr>
+                    <tr><td colSpan={event.requiresWaiver ? 6 : 5} className="px-6 py-16 text-center text-gray-400">La lista è vuota</td></tr>
                   ) : (
                     attendees.map(attendee => {
                       const isEditing = editingAttendeeId === attendee.id;
@@ -546,22 +568,24 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
                               </button>
                              )}
                           </td>
-                          <td className="px-6 py-4 text-center border-l border-gray-50">
-                       {!isEditing && (
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); handleToggleWaiver(attendee.id); }} 
-                          className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide transition-all border ${attendee.hasWaiver ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-red-50 text-red-700 border-red-200'}`} 
-                          type="button"
-                          title={attendee.hasWaiver ? "Liberatoria ricevuta" : "Liberatoria mancante"}
-                        >
-                          {attendee.hasWaiver ? (
-                            <><ShieldCheck className="w-3.5 h-3.5 mr-1 text-indigo-500" /> Ricevuta</>
-                          ) : (
-                            <><ShieldAlert className="w-3.5 h-3.5 mr-1 text-red-500" /> Mancante</>
+                          {event.requiresWaiver && (
+                            <td className="px-6 py-4 text-center border-l border-gray-50">
+                             {!isEditing && (
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleToggleWaiver(attendee.id); }} 
+                                className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide transition-all border ${attendee.hasWaiver ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-red-50 text-red-700 border-red-200'}`} 
+                                type="button"
+                                title={attendee.hasWaiver ? "Liberatoria ricevuta" : "Liberatoria mancante"}
+                              >
+                                {attendee.hasWaiver ? (
+                                  <><ShieldCheck className="w-3.5 h-3.5 mr-1 text-indigo-500" /> Ricevuta</>
+                                ) : (
+                                  <><ShieldAlert className="w-3.5 h-3.5 mr-1 text-red-500" /> Mancante</>
+                                )}
+                              </button>
+                             )}
+                            </td>
                           )}
-                        </button>
-                       )}
-                    </td>
                     <td className="px-6 py-4 text-right">
                             {isEditing ? (
                               <div className="flex justify-end gap-2" onClick={e => e.stopPropagation()}><button onClick={() => saveEditedAttendee(attendee)} className="bg-green-500 text-white p-1.5 rounded-lg"><Save className="w-4 h-4" /></button><button onClick={cancelEditingAttendee} className="bg-gray-400 text-white p-1.5 rounded-lg"><X className="w-4 h-4" /></button></div>
