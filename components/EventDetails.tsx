@@ -5,11 +5,11 @@ import { Button } from './Button';
 import { 
   ArrowLeft, UserPlus, CheckCircle, XCircle, Trash2, 
   Calendar, MapPin, Euro, Clock, Edit2, Plus, 
-  TrendingUp, TrendingDown, Wallet, Users, Save, X, AlertTriangle, Phone, Mail, UserCheck, Tag, UserMinus, UserX
+  TrendingUp, TrendingDown, Wallet, Users, Save, X, AlertTriangle, Phone, Mail, UserCheck, Tag, UserMinus, UserX, FileText, ShieldCheck, ShieldAlert
 } from 'lucide-react';
 import { 
   addAttendee, togglePaymentStatus, deleteAttendee, 
-  deleteEvent, addExpense, deleteExpense, updateAttendee, updateExpense, generateId
+  deleteEvent, addExpense, deleteExpense, updateAttendee, updateExpense, generateId, toggleWaiverStatus
 } from '../services/storageService';
 
 interface EventDetailsProps {
@@ -184,6 +184,16 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
     setLoading(true);
     try {
       const updated = await togglePaymentStatus(event.id, attendeeId);
+      if (updated) onUpdate(updated);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleWaiver = async (attendeeId: string) => {
+    setLoading(true);
+    try {
+      const updated = await toggleWaiverStatus(event.id, attendeeId);
       if (updated) onUpdate(updated);
     } finally {
       setLoading(false);
@@ -470,12 +480,13 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
                     <th className="px-6 py-4">CONTATTI</th>
                     <th className="px-6 py-4 text-center">QUOTA PAGATA</th>
                     <th className="px-6 py-4 text-center">STATO</th>
+                    <th className="px-6 py-4 text-center border-l border-indigo-900/30">LIBERATORIA</th>
                     <th className="px-6 py-4 text-right">AZIONI</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {attendees.length === 0 ? (
-                    <tr><td colSpan={5} className="px-6 py-16 text-center text-gray-400">La lista è vuota</td></tr>
+                    <tr><td colSpan={6} className="px-6 py-16 text-center text-gray-400">La lista è vuota</td></tr>
                   ) : (
                     attendees.map(attendee => {
                       const isEditing = editingAttendeeId === attendee.id;
@@ -535,7 +546,23 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
                               </button>
                              )}
                           </td>
-                          <td className="px-6 py-4 text-right">
+                          <td className="px-6 py-4 text-center border-l border-gray-50">
+                       {!isEditing && (
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleToggleWaiver(attendee.id); }} 
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide transition-all border ${attendee.hasWaiver ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-red-50 text-red-700 border-red-200'}`} 
+                          type="button"
+                          title={attendee.hasWaiver ? "Liberatoria ricevuta" : "Liberatoria mancante"}
+                        >
+                          {attendee.hasWaiver ? (
+                            <><ShieldCheck className="w-3.5 h-3.5 mr-1 text-indigo-500" /> Ricevuta</>
+                          ) : (
+                            <><ShieldAlert className="w-3.5 h-3.5 mr-1 text-red-500" /> Mancante</>
+                          )}
+                        </button>
+                       )}
+                    </td>
+                    <td className="px-6 py-4 text-right">
                             {isEditing ? (
                               <div className="flex justify-end gap-2" onClick={e => e.stopPropagation()}><button onClick={() => saveEditedAttendee(attendee)} className="bg-green-500 text-white p-1.5 rounded-lg"><Save className="w-4 h-4" /></button><button onClick={cancelEditingAttendee} className="bg-gray-400 text-white p-1.5 rounded-lg"><X className="w-4 h-4" /></button></div>
                             ) : (

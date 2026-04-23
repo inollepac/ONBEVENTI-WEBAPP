@@ -174,6 +174,24 @@ export const togglePaymentStatus = async (eventId: string, attendeeId: string): 
   return event;
 };
 
+export const toggleWaiverStatus = async (eventId: string, attendeeId: string): Promise<AppEvent | null> => {
+  const events = await getEvents();
+  const event = events.find(e => e.id === eventId);
+  if (!event) return null;
+  
+  event.attendees = (event.attendees || []).map(a => {
+    if (a.id === attendeeId) {
+      return { 
+        ...a, 
+        hasWaiver: !a.hasWaiver 
+      };
+    }
+    return a;
+  });
+  await saveEvent(event);
+  return event;
+};
+
 export const addExpense = async (eventId: string, expense: Expense): Promise<AppEvent | null> => {
   const events = await getEvents();
   const event = events.find(e => e.id === eventId);
@@ -348,6 +366,24 @@ export const toggleOnbeDayPaymentStatus = async (onbeDayId: string, attendeeId: 
       return { 
         ...a, 
         status: a.status === PaymentStatus.PAID ? PaymentStatus.PENDING : PaymentStatus.PAID 
+      };
+    }
+    return a;
+  });
+  await saveOnbeDay(item);
+  return item;
+};
+
+export const toggleOnbeDayWaiverStatus = async (onbeDayId: string, attendeeId: string): Promise<OnbeDay | null> => {
+  const list = await getOnbeDays();
+  const item = list.find(e => e.id === onbeDayId);
+  if (!item) return null;
+  
+  item.attendees = (item.attendees || []).map(a => {
+    if (a.id === attendeeId) {
+      return { 
+        ...a, 
+        hasWaiver: !a.hasWaiver 
       };
     }
     return a;

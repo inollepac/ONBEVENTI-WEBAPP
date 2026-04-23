@@ -14,6 +14,7 @@ export interface Attendee {
   registrationDate: string;
   paidAmount?: number;
   isPresent?: boolean;
+  hasWaiver?: boolean;
 }
 
 export interface Expense {

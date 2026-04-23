@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { AppEvent, Attendee, OnbeDay, PaymentStatus } from '../types';
-import { Users, Search, Mail, Phone, ArrowLeft, SortAsc, SortDesc, Trophy, Star, Repeat, Target, LayoutGrid, Ticket, Calendar, Filter, ChevronDown } from 'lucide-react';
+import { Users, Search, Mail, Phone, ArrowLeft, SortAsc, SortDesc, Trophy, Star, Repeat, Target, LayoutGrid, Ticket, Calendar, Filter, ChevronDown, ShieldAlert, ShieldCheck } from 'lucide-react';
 
 interface ParticipantsListProps {
   events: AppEvent[];
@@ -59,7 +59,8 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
       firstEventDate: number, 
       key: string,
       isVip: boolean,
-      isRegular: boolean
+      isRegular: boolean,
+      missingWaivers: number
     }>();
 
     const processAttendees = (attendees: Attendee[], item: AppEvent | OnbeDay) => {
@@ -67,12 +68,16 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
       (attendees || []).forEach(a => {
         const key = (a.email || a.phone || a.name).toLowerCase().trim();
         const isPresent = a.isPresent !== false;
+        const needsWaiver = !a.hasWaiver;
         
         if (map.has(key)) {
           const existing = map.get(key)!;
           existing.totalBookings += 1;
           if (isPresent) {
             existing.eventsCount += 1;
+          }
+          if (needsWaiver) {
+            existing.missingWaivers += 1;
           }
           if (itemTimestamp < existing.firstEventDate) {
             existing.firstEventDate = itemTimestamp;
@@ -91,7 +96,8 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
             firstEventDate: itemTimestamp,
             key: key,
             isVip: false,
-            isRegular: false
+            isRegular: false,
+            missingWaivers: needsWaiver ? 1 : 0
           });
         }
       });
@@ -113,6 +119,9 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
     const multiEventCount = activeList.filter(m => m.eventsCount > 1).length;
     const fedeleCount = activeList.filter(m => m.isRegular).length;
     const vipCount = activeList.filter(m => m.isVip).length;
+    const totalMissingWaivers = targetItems.reduce((acc, item) => {
+      return acc + (item.attendees || []).filter(a => !a.hasWaiver).length;
+    }, 0);
 
     // --- Calcolo Generi su membri ATTIVI ---
     const maleCount = activeList.filter(m => m.attendee.gender === 'M').length;
@@ -134,7 +143,8 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
       multiEventPercentage: activeMembersCount > 0 ? (multiEventCount / activeMembersCount) * 100 : 0,
       fedelePercentage: activeMembersCount > 0 ? (fedeleCount / activeMembersCount) * 100 : 0,
       vipPercentage: activeMembersCount > 0 ? (vipCount / activeMembersCount) * 100 : 0,
-      realReturnRate
+      realReturnRate,
+      totalMissingWaivers
     };
     
     let filteredList = [...fullList];
@@ -226,7 +236,7 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
         <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
           <div className="absolute top-0 right-0 w-12 h-12 bg-indigo-50 rounded-bl-full"></div>
           <div className="relative">
@@ -281,6 +291,16 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
             <p className="text-[8px] text-gray-400 mt-1 font-medium italic">Badge VIP</p>
           </div>
         </div>
+
+        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-12 h-12 bg-red-50 rounded-bl-full"></div>
+          <div className="relative">
+            <ShieldAlert className="w-4 h-4 text-red-500 mb-2" />
+            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Liberatorie Mancanti</p>
+            <p className="text-2xl font-black text-gray-900 mt-0.5">{stats.totalMissingWaivers}</p>
+            <p className="text-[8px] text-gray-400 mt-1 font-medium italic text-wrap">Totale su iscrizioni filtrate</p>
+          </div>
+        </div>
       </div>
 
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
@@ -327,6 +347,7 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
                     Presenze {sortKey === 'eventsCount' && (sortOrder === 'asc' ? <SortAsc className="w-3 h-3 opacity-60" /> : <SortDesc className="w-3 h-3 opacity-60" />)}
                   </div>
                 </th>
+                <th className="px-6 py-4 text-center">Liberatorie</th>
                 <th className="px-6 py-4">Ultimi Eventi</th>
               </tr>
             </thead>
@@ -404,6 +425,21 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
                           {item.eventsCount}
                         </span>
                       </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      {item.missingWaivers > 0 ? (
+                        <div className="flex flex-col items-center">
+                          <span className="inline-flex items-center bg-red-100 text-red-700 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border border-red-200">
+                            <ShieldAlert className="w-2.5 h-2.5 mr-1" /> {item.missingWaivers} Da Ricevere
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center">
+                          <span className="inline-flex items-center bg-green-100 text-green-700 px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border border-green-200">
+                            <ShieldCheck className="w-2.5 h-2.5 mr-1" /> In Regola
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-wrap gap-1.5 max-w-sm">

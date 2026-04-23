@@ -5,7 +5,7 @@ import { Button } from './Button';
 import { 
   ArrowLeft, Edit2, Save, X, Mail, Phone, Calendar, 
   MessageCircle, ExternalLink, Trophy, History, Wallet, 
-  CheckCircle, Clock, Tag, Briefcase, Download, User, UserX
+  CheckCircle, Clock, Tag, Briefcase, Download, User, UserX, ShieldCheck, ShieldAlert
 } from 'lucide-react';
 import { updateParticipantGlobally } from '../services/storageService';
 
@@ -315,7 +315,8 @@ END:VCARD`;
                 <thead className="bg-indigo-950 text-white text-[10px] font-bold uppercase tracking-wider">
                   <tr>
                     <th className="px-6 py-4">Evento</th>
-                    <th className="px-6 py-4">Presenza</th>
+                    <th className="px-6 py-4 text-center">Presenza</th>
+                    <th className="px-6 py-4 text-center">Liberatoria</th>
                     <th className="px-6 py-4 text-center">Pagamento</th>
                     <th className="px-6 py-4 text-right">Quota</th>
                   </tr>
@@ -354,14 +355,25 @@ END:VCARD`;
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-4 text-center">
                             {isPresent ? (
-                              <span className="flex items-center text-green-600 text-[10px] font-black uppercase tracking-wider">
+                              <span className="flex items-center justify-center text-green-600 text-[10px] font-black uppercase tracking-wider">
                                 <CheckCircle className="w-3 h-3 mr-1" /> Presente
                               </span>
                             ) : (
-                              <span className="flex items-center text-red-400 text-[10px] font-black uppercase tracking-wider">
+                              <span className="flex items-center justify-center text-red-400 text-[10px] font-black uppercase tracking-wider">
                                 <UserX className="w-3 h-3 mr-1" /> Assente
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            {attendeeData.hasWaiver ? (
+                              <span className="flex items-center justify-center text-indigo-600 text-[10px] font-black uppercase tracking-wider">
+                                <ShieldCheck className="w-3 h-3 mr-1" /> Ricevuta
+                              </span>
+                            ) : (
+                              <span className="flex items-center justify-center text-red-500 text-[10px] font-black uppercase tracking-wider">
+                                <ShieldAlert className="w-3 h-3 mr-1" /> Mancante
                               </span>
                             )}
                           </td>
