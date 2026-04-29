@@ -342,6 +342,34 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
   const malePercent = totalPresent > 0 ? Math.round((malesCount / totalPresent) * 100) : 0;
   const femalePercent = totalPresent > 0 ? Math.round((femalesCount / totalPresent) * 100) : 0;
 
+  const priorParticipantKeys = useMemo(() => {
+    const currentEventDate = new Date(event.date);
+    const keys = new Set<string>();
+    
+    const checkPrior = (ev: AppEvent | OnbeDay) => {
+      if (ev.id === event.id) return;
+      const evDate = new Date(ev.date);
+      if (evDate < currentEventDate) {
+        (ev.attendees || []).forEach(at => {
+          const key = (at.email || at.phone || at.name).toLowerCase().trim();
+          keys.add(key);
+        });
+      }
+    };
+
+    (allEvents || []).forEach(checkPrior);
+    (allOnbeDays || []).forEach(checkPrior);
+    return keys;
+  }, [event.id, event.date, allEvents, allOnbeDays]);
+
+  const newMembersCount = useMemo(() => {
+    const currentAttendees = event.attendees || [];
+    return currentAttendees.filter(at => {
+      const key = (at.email || at.phone || at.name).toLowerCase().trim();
+      return !priorParticipantKeys.has(key);
+    }).length;
+  }, [event.attendees, priorParticipantKeys]);
+
   return (
     <div className="space-y-8 animate-fade-in pb-10 relative">
       {loading && <div className="fixed inset-0 z-[60] bg-white/50 backdrop-blur-sm flex items-center justify-center"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-pink-600"></div></div>}
@@ -425,14 +453,23 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
                 <p className="text-xs text-center mt-2 text-gray-400">{attendees.length} iscritti ({totalPresent} presenti)</p>
                 
                 {/* --- DEMOGRAFIA EVENTO REALE --- */}
-                <div className="mt-6 pt-4 border-t border-gray-50 flex items-center justify-between">
-                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Mix Genere Presenti</span>
-                  <div className="flex gap-2">
-                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 flex items-center gap-1">
-                      M: {malePercent}%
-                    </span>
-                    <span className="text-[10px] font-bold text-pink-600 bg-pink-50 px-2 py-0.5 rounded-full border border-pink-100 flex items-center gap-1">
-                      F: {femalePercent}%
+                <div className="mt-6 pt-4 border-t border-gray-50 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Mix Genere Presenti</span>
+                    <div className="flex gap-2">
+                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100 flex items-center gap-1">
+                        M: {malePercent}%
+                      </span>
+                      <span className="text-[10px] font-bold text-pink-600 bg-pink-50 px-2 py-0.5 rounded-full border border-pink-100 flex items-center gap-1">
+                        F: {femalePercent}%
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Nuovi Membri</span>
+                    <span className="text-[10px] font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
+                      {newMembersCount} ({attendees.length > 0 ? Math.round((newMembersCount / attendees.length) * 100) : 0}%)
                     </span>
                   </div>
                 </div>
@@ -567,6 +604,7 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
                       const hasCustomAmount = attendee.paidAmount !== undefined && attendee.paidAmount !== event.cost;
                       const displayAmount = attendee.paidAmount !== undefined ? attendee.paidAmount : event.cost;
                       const participantKey = (attendee.email || attendee.phone || attendee.name).toLowerCase().trim();
+                      const isNewMember = !priorParticipantKeys.has(participantKey);
                       
                       return (
                         <tr 
@@ -595,6 +633,7 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
                                   </span>
                                 )}
                                 {hasCustomAmount && <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold uppercase flex items-center gap-0.5"><Tag className="w-2.5 h-2.5" /> Special</span>}
+                                {isNewMember && <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">NEW</span>}
                               </div>
                             )}
                           </td>
@@ -664,6 +703,7 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
                    ) : (
                     waitingList.map(attendee => {
                       const participantKey = (attendee.email || attendee.phone || attendee.name).toLowerCase().trim();
+                      const isNewMember = !priorParticipantKeys.has(participantKey);
                       return (
                         <tr 
                           key={attendee.id} 
@@ -673,6 +713,7 @@ export const EventDetails: React.FC<EventDetailsProps> = ({
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
                               <span className="font-semibold text-gray-900 italic">{attendee.name}</span>
+                              {isNewMember && <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">NEW</span>}
                               {attendee.gender && (
                                 <span className={`text-[8px] px-1 rounded font-black ${attendee.gender === 'M' ? 'bg-blue-100 text-blue-600' : attendee.gender === 'F' ? 'bg-pink-100 text-pink-600' : 'bg-gray-100 text-gray-500'}`}>
                                   {attendee.gender}
