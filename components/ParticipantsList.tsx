@@ -335,7 +335,8 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-indigo-950 text-white text-[10px] font-bold uppercase tracking-wider">
@@ -357,7 +358,7 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
             <tbody className="divide-y divide-gray-100">
               {list.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-24 text-center text-gray-400 italic">
+                  <td colSpan={5} className="px-6 py-24 text-center text-gray-400 italic">
                     <div className="flex flex-col items-center gap-3">
                       <div className="p-4 bg-gray-50 rounded-full"><Users className="w-8 h-8 opacity-20" /></div>
                       <p>Nessun membro trovato.</p>
@@ -460,6 +461,102 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Cards-Grid View */}
+        <div className="block md:hidden space-y-4">
+          {list.length === 0 ? (
+            <div className="p-12 text-center text-gray-400 bg-white rounded-2xl border border-gray-100 italic flex flex-col items-center gap-3">
+              <div className="p-4 bg-gray-50 rounded-full"><Users className="w-8 h-8 opacity-20" /></div>
+              <p>Nessun membro trovato.</p>
+            </div>
+          ) : (
+            list.map((item, idx) => (
+              <div 
+                key={idx} 
+                className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4 hover:bg-pink-50/20 active:bg-pink-50/30 transition-all cursor-pointer"
+                onClick={() => onParticipantClick(item.key)}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 shrink-0 rounded-2xl bg-gradient-to-br from-indigo-50 to-pink-50 text-indigo-700 flex items-center justify-center font-black text-base shadow-sm border border-gray-100 relative">
+                    {item.attendee.name.charAt(0).toUpperCase()}
+                    {item.isVip && (
+                      <div className="absolute -top-1.5 -right-1.5 bg-yellow-400 p-0.5 rounded-full border border-white shadow-sm">
+                        <Trophy className="w-2.5 h-2.5 text-white" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="font-bold text-gray-900">{item.attendee.name}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {item.isVip && (
+                        <span className="inline-flex items-center bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border border-yellow-200 leading-none">
+                          VIP
+                        </span>
+                      )}
+                      {item.isRegular && (
+                        <span className="inline-flex items-center bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border border-green-200 leading-none">
+                          FEDELE
+                        </span>
+                      )}
+                      {item.eventsCount >= vipThreshold && (
+                        <span className="text-[9px] text-yellow-600/70 font-bold uppercase tracking-tighter self-center">Best Member</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-xs text-gray-400 space-y-1 pt-1 border-t border-gray-50">
+                  {item.attendee.email && <div className="flex items-center"><Mail className="w-3.5 h-3.5 mr-1.5" /> {item.attendee.email}</div>}
+                  {item.attendee.phone && <div className="flex items-center"><Phone className="w-3.5 h-3.5 mr-1.5" /> {item.attendee.phone}</div>}
+                </div>
+
+                <div className="flex justify-between items-center pt-3 border-t border-gray-50 gap-2">
+                  <div className="flex gap-1.5">
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 flex items-center">Presenze</span>
+                    <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-black border ${
+                      item.eventsCount >= vipThreshold 
+                        ? 'bg-yellow-400 text-white border-yellow-500' 
+                        : item.eventsCount >= regularThreshold 
+                          ? 'bg-green-500 text-white border-green-600'
+                          : 'bg-indigo-50 text-indigo-700 border-indigo-100'
+                    }`}>
+                      {item.eventsCount}
+                    </span>
+                  </div>
+                  
+                  <div>
+                    {item.missingWaivers > 0 ? (
+                      <span className="inline-flex items-center bg-red-100 text-red-700 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border border-red-200">
+                        <ShieldAlert className="w-2.5 h-2.5 mr-1" /> {item.missingWaivers} NO Liberatoria
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center bg-green-100 text-green-700 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border border-green-200">
+                        <ShieldCheck className="w-2.5 h-2.5 mr-1" /> Liberatorie OK
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {item.eventTitles.length > 0 && (
+                  <div className="pt-3 border-t border-gray-50 flex items-center justify-between gap-2">
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Ultimi Eventi</span>
+                    <div className="flex flex-wrap gap-1">
+                      {item.eventTitles.slice(-2).reverse().map((t, i) => (
+                        <span key={i} className={`text-[8px] px-2 py-0.5 rounded border shadow-sm truncate max-w-[100px] font-semibold leading-none ${
+                          i === 0 ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-white text-gray-500 border-gray-100'
+                        }`}>
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

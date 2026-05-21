@@ -579,7 +579,8 @@ export const OnbeDayDetails: React.FC<OnbeDayDetailsProps> = ({
               </div>
             )}
 
-            <div className="overflow-x-auto flex-1">
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto flex-1">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="text-xs font-semibold text-gray-300 bg-indigo-950 border-b border-indigo-900">
@@ -674,7 +675,7 @@ export const OnbeDayDetails: React.FC<OnbeDayDetailsProps> = ({
                              )}
                             </td>
                           )}
-                    <td className="px-6 py-4 text-right">
+                          <td className="px-6 py-4 text-right">
                             {isEditing ? (
                               <div className="flex justify-end gap-2" onClick={e => e.stopPropagation()}><button onClick={() => saveEditedAttendee(attendee)} className="bg-green-500 text-white p-1.5 rounded-lg"><Save className="w-4 h-4" /></button><button onClick={cancelEditingAttendee} className="bg-gray-400 text-white p-1.5 rounded-lg"><X className="w-4 h-4" /></button></div>
                             ) : (
@@ -754,6 +755,200 @@ export const OnbeDayDetails: React.FC<OnbeDayDetailsProps> = ({
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Card-List View */}
+            <div className="block md:hidden flex-1 space-y-4">
+              {viewMode === 'attendees' ? (
+                attendees.length === 0 ? (
+                  <div className="p-12 text-center text-gray-400 bg-white rounded-2xl border border-gray-100 italic">La lista è vuota</div>
+                ) : (
+                  attendees.map(attendee => {
+                    const isEditing = editingAttendeeId === attendee.id;
+                    const isAbsent = attendee.isPresent === false;
+                    const hasCustomAmount = attendee.paidAmount !== undefined && attendee.paidAmount !== onbeDay.cost;
+                    const displayAmount = attendee.paidAmount !== undefined ? attendee.paidAmount : onbeDay.cost;
+                    const participantKey = (attendee.email || attendee.phone || attendee.name).toLowerCase().trim();
+                    const isNewMember = !priorParticipantKeys.has(participantKey);
+
+                    return (
+                      <div 
+                        key={attendee.id}
+                        className={`bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4 transition-all ${isEditing ? 'bg-pink-50/50 ring-2 ring-pink-500 border-transparent shadow-md' : 'active:bg-gray-50'} ${isAbsent ? 'opacity-70' : ''}`}
+                        onClick={() => !isEditing && onParticipantClick(participantKey)}
+                      >
+                        {isEditing ? (
+                          <div className="space-y-3" onClick={e => e.stopPropagation()}>
+                            <div className="border-b border-gray-100 pb-2">
+                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Modifica Partecipante</span>
+                            </div>
+                            <div>
+                              <label className="text-[10px] font-bold text-gray-400 uppercase">Nome</label>
+                              <input className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 bg-white mt-1 h-10 outline-none focus:ring-2 focus:ring-pink-500" value={editAttendeeData.name} onChange={e => setEditAttendeeData(p => ({...p, name: e.target.value}))} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="text-[10px] font-bold text-gray-400 uppercase">Sesso</label>
+                                <select className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 bg-white mt-1 h-10 outline-none focus:ring-2 focus:ring-pink-500" value={editAttendeeData.gender} onChange={e => setEditAttendeeData(p => ({...p, gender: e.target.value}))}>
+                                  <option value="">Sesso</option>
+                                  <option value="M">Maschio</option>
+                                  <option value="F">Femmina</option>
+                                  <option value="Other">Altro</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-bold text-gray-400 uppercase">Quota (€)</label>
+                                <input type="number" step="0.01" className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 mt-1 h-10 font-bold text-pink-600 outline-none focus:ring-2 focus:ring-pink-500" value={editAttendeeData.paidAmount} onChange={e => setEditAttendeeData(p => ({...p, paidAmount: e.target.value}))} placeholder={onbeDay.cost.toString()} />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 gap-3">
+                              <div>
+                                <label className="text-[10px] font-bold text-gray-400 uppercase">Email</label>
+                                <input className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 bg-white mt-1 h-10 outline-none focus:ring-2 focus:ring-pink-500" placeholder="Email" value={editAttendeeData.email} onChange={e => setEditAttendeeData(p => ({...p, email: e.target.value}))} />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-bold text-gray-400 uppercase">Telefono</label>
+                                <input className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 bg-white mt-1 h-10 outline-none focus:ring-2 focus:ring-pink-500" placeholder="Telefono" value={editAttendeeData.phone} onChange={e => setEditAttendeeData(p => ({...p, phone: e.target.value}))} />
+                              </div>
+                            </div>
+                            <div className="flex justify-end gap-2 pt-2">
+                              <button onClick={cancelEditingAttendee} className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-xl text-xs font-bold transition-colors">Annulla</button>
+                              <button onClick={() => saveEditedAttendee(attendee)} className="bg-indigo-950 text-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-colors shadow-md shadow-indigo-900/10">Salva</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            {/* Card Header */}
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="space-y-1">
+                                <h4 className={`font-bold text-gray-900 flex flex-wrap items-center gap-1.5 ${isAbsent ? 'line-through text-gray-400' : ''}`}>
+                                  <span>{attendee.name}</span>
+                                  {attendee.gender && (
+                                    <span className={`text-[8px] px-1.5 py-0.5 rounded font-black leading-none ${attendee.gender === 'M' ? 'bg-blue-100 text-blue-600' : attendee.gender === 'F' ? 'bg-pink-100 text-pink-600' : 'bg-gray-100 text-gray-500'}`}>
+                                      {attendee.gender}
+                                    </span>
+                                  )}
+                                </h4>
+                                <div className="text-xs text-gray-400 space-y-1 pt-1">
+                                  {attendee.email && <div className="flex items-center"><Mail className="w-3.5 h-3.5 mr-1.5 text-gray-300" /> {attendee.email}</div>}
+                                  {attendee.phone && <div className="flex items-center"><Phone className="w-3.5 h-3.5 mr-1.5 text-gray-300" /> {attendee.phone}</div>}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block mb-0.5">Quota</span>
+                                <span className={`text-base font-black ${hasCustomAmount ? 'text-pink-600' : 'text-gray-900'}`}>
+                                  € {displayAmount.toFixed(2)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Status container */}
+                            <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-gray-50">
+                              {isNewMember && <span className="text-[9px] bg-green-100 text-green-700 px-2 py-0.7 rounded font-black uppercase tracking-tighter">NEW</span>}
+                              {hasCustomAmount && <span className="text-[9px] bg-amber-100 text-amber-700 px-2 py-0.7 rounded font-bold uppercase flex items-center gap-0.5"><Tag className="w-2.5 h-2.5" /> Special</span>}
+
+                              {/* Clickable Payment Status */}
+                              <button onClick={(e) => { e.stopPropagation(); handleTogglePayment(attendee.id); }} className={`inline-flex items-center px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wide transition-all ${attendee.status === PaymentStatus.PAID ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-yellow-100 text-yellow-800 border border-yellow-200'}`} type="button">
+                                {attendee.status === PaymentStatus.PAID ? 'Pagato' : 'Da Pagare'}
+                              </button>
+
+                              {/* Clickable Waiver Status */}
+                              {onbeDay.requiresWaiver && (
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); handleToggleWaiver(attendee.id); }} 
+                                  className={`inline-flex items-center px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wide transition-all border ${attendee.hasWaiver ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-red-50 text-red-700 border-red-200'}`} 
+                                  type="button"
+                                >
+                                  {attendee.hasWaiver ? 'Liberatoria: OK' : 'Liberatoria: NO'}
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Actions bar */}
+                            <div className="flex justify-between items-center pt-3 border-t border-gray-50" onClick={e => e.stopPropagation()}>
+                              <button 
+                                onClick={() => handleTogglePresence(attendee)} 
+                                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${isAbsent ? 'text-red-700 bg-red-50 hover:bg-red-100' : 'text-gray-500 hover:text-green-600 hover:bg-green-50'}`}
+                              >
+                                {isAbsent ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                                <span>{isAbsent ? 'Registra Presente' : 'Registra Assente'}</span>
+                              </button>
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => startEditingAttendee(attendee)} className="p-2 text-gray-400 hover:text-indigo-600 rounded-xl hover:bg-gray-50">
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button onClick={() => requestDeleteAttendee(attendee.id)} className="p-2 text-gray-400 hover:text-red-600 rounded-xl hover:bg-gray-50">
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })
+                )
+              ) : (
+                waitingList.length === 0 ? (
+                  <div className="p-12 text-center text-gray-400 bg-white rounded-2xl border border-gray-100 italic">Nessuno in lista d'attesa</div>
+                ) : (
+                  waitingList.map(attendee => {
+                    const participantKey = (attendee.email || attendee.phone || attendee.name).toLowerCase().trim();
+                    const isNewMember = !priorParticipantKeys.has(participantKey);
+
+                    return (
+                      <div 
+                        key={attendee.id} 
+                        className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-3 hover:bg-pink-50/20 transition-all cursor-pointer"
+                        onClick={() => onParticipantClick(participantKey)}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="space-y-1">
+                            <h4 className="font-bold text-gray-900 flex flex-wrap items-center gap-1.5 italic">
+                              <span>{attendee.name}</span>
+                              {attendee.gender && (
+                                <span className={`text-[8px] px-1.5 py-0.5 rounded font-black ${attendee.gender === 'M' ? 'bg-blue-100 text-blue-600' : attendee.gender === 'F' ? 'bg-pink-100 text-pink-600' : 'bg-gray-100 text-gray-500'}`}>
+                                  {attendee.gender}
+                                </span>
+                              )}
+                            </h4>
+                            <div className="text-xs text-gray-400 space-y-1 pt-1">
+                              {attendee.email && <div className="flex items-center"><Mail className="w-3.5 h-3.5 mr-1.5" /> {attendee.email}</div>}
+                              {attendee.phone && <div className="flex items-center"><Phone className="w-3.5 h-3.5 mr-1.5" /> {attendee.phone}</div>}
+                            </div>
+                          </div>
+                          <div>
+                            <span className="bg-orange-50 text-orange-600 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border border-orange-100">In Attesa</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-3 border-t border-gray-50" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center gap-2">
+                            {isNewMember && <span className="text-[9px] bg-green-100 text-green-700 px-2 py-0.5 rounded font-black uppercase tracking-tighter">NEW</span>}
+                            <span className="text-gray-400 italic text-xs">Quota std: € {attendee.paidAmount?.toFixed(2) || onbeDay.cost.toFixed(2)}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button 
+                              onClick={() => handlePromoteFromWaiting(attendee.id)} 
+                              className="p-2 bg-green-50 text-green-600 hover:bg-green-100 rounded-xl transition-all"
+                              title="Inserisci nella lista iscritti"
+                            >
+                              <UserCheck className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => handleRemoveFromWaiting(attendee.id)} 
+                              className="p-2 bg-red-50 text-red-500 hover:bg-red-100 rounded-xl transition-all"
+                              title="Rimuovi dalla lista d'attesa"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )
+              )}
             </div>
           </div>
         </div>

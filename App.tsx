@@ -13,10 +13,11 @@ import { IdeasView } from './components/IdeasView';
 import { OnbeDayList } from './components/OnbeDayList';
 import { OnbeDayForm } from './components/OnbeDayForm';
 import { OnbeDayDetails } from './components/OnbeDayDetails';
-import { LayoutDashboard, Settings as SettingsIcon, Cloud, CloudOff, RefreshCw, Users, AlertTriangle, X, Lightbulb, Calendar as CalendarIcon, Ticket } from 'lucide-react';
+import { LayoutDashboard, Settings as SettingsIcon, Cloud, CloudOff, RefreshCw, Users, AlertTriangle, X, Lightbulb, Calendar as CalendarIcon, Ticket, Menu } from 'lucide-react';
 
 export default function App() {
   const [viewState, setViewState] = useState<ViewState>({ type: 'DASHBOARD' });
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [events, setEvents] = useState<AppEvent[]>([]);
   const [onbeDays, setOnbeDays] = useState<OnbeDay[]>([]);
   const [extraExpenses, setExtraExpenses] = useState<ExtraExpense[]>([]);
@@ -251,7 +252,109 @@ export default function App() {
         </div>
       )}
 
-      <aside className="bg-indigo-950 text-white w-full md:w-64 flex-shrink-0 flex flex-col shadow-2xl z-20 relative overflow-hidden">
+      {/* Mobile Top Header Bar */}
+      <header className="md:hidden bg-indigo-950 text-white px-5 py-4 flex items-center justify-between shadow-md z-30 sticky top-0 border-b border-indigo-900/50">
+        <div className="flex items-center gap-2">
+          <span className="text-xl font-black text-pink-400">ON</span>
+          <span className="text-xl font-black text-yellow-400">BE</span>
+          <span className="text-[10px] font-black text-indigo-300 uppercase tracking-widest bg-indigo-900/50 px-2 py-0.5 rounded border border-indigo-800/50">CRM</span>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <button onClick={refreshData} className="p-2 bg-indigo-900/40 rounded-xl hover:text-white transition-all border border-indigo-800/30" title="Ricarica Dati">
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
+          
+          <button 
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+            className="p-2 bg-indigo-900/50 rounded-xl border border-indigo-800/30 focus:outline-none focus:ring-2 focus:ring-pink-500"
+          >
+            {isMobileMenuOpen ? <X className="w-4 h-4 text-white" /> : <Menu className="w-4 h-4 text-indigo-200" />}
+          </button>
+        </div>
+      </header>
+
+      {/* Mobile Drawer Overlay Menu */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden fixed inset-x-0 top-[61px] bottom-0 bg-indigo-950/98 z-50 flex flex-col p-6 animate-fade-in border-t border-indigo-900/30 overflow-y-auto">
+          <div className="space-y-4 flex-1 flex flex-col justify-between">
+            <nav className="space-y-2 mt-2">
+              <button 
+                onClick={() => { navigateToDashboard(); setIsMobileMenuOpen(false); }}
+                className={`w-full flex items-center px-4 py-3.5 rounded-xl font-bold transition-all ${
+                  viewState.type === 'DASHBOARD'
+                    ? 'bg-gradient-to-r from-pink-600 to-purple-700 text-white shadow-lg border border-pink-500/20' 
+                    : 'text-indigo-200 hover:bg-white/5 hover:text-white'
+                }`}
+              >
+                <LayoutDashboard className="w-5 h-5 mr-3" />
+                Dashboard
+              </button>
+
+              <button 
+                onClick={() => { setViewState({ type: 'ONBEVENTI_LIST' }); setIsMobileMenuOpen(false); }}
+                className={`w-full flex items-center px-4 py-3.5 rounded-xl font-bold transition-all ${
+                  ['ONBEVENTI_LIST', 'EVENT_DETAILS', 'CREATE_EVENT', 'EDIT_EVENT'].includes(viewState.type)
+                    ? 'bg-gradient-to-r from-pink-600 to-purple-700 text-white shadow-lg border border-pink-500/20' 
+                    : 'text-indigo-200 hover:bg-white/5 hover:text-white'
+                }`}
+              >
+                <Ticket className="w-5 h-5 mr-3" />
+                ONBEVENTI
+              </button>
+
+              <button 
+                onClick={() => { setViewState({ type: 'PARTICIPANTS' }); setIsMobileMenuOpen(false); }}
+                className={`w-full flex items-center px-4 py-3.5 rounded-xl font-bold transition-all ${
+                  ['PARTICIPANTS', 'PARTICIPANT_DETAILS'].includes(viewState.type)
+                    ? 'bg-gradient-to-r from-pink-600 to-purple-700 text-white shadow-lg border border-pink-500/20' 
+                    : 'text-indigo-200 hover:bg-white/5 hover:text-white'
+                }`}
+              >
+                <Users className="w-5 h-5 mr-3" />
+                Membri
+              </button>
+
+              <button 
+                onClick={() => { setViewState({ type: 'ONBEDAY_LIST' }); setIsMobileMenuOpen(false); }}
+                className={`w-full flex items-center px-4 py-3.5 rounded-xl font-bold transition-all ${
+                  ['ONBEDAY_LIST', 'ONBEDAY_DETAILS', 'CREATE_ONBEDAY', 'EDIT_ONBEDAY'].includes(viewState.type)
+                    ? 'bg-gradient-to-r from-pink-600 to-purple-700 text-white shadow-lg border border-pink-500/20' 
+                    : 'text-indigo-200 hover:bg-white/5 hover:text-white'
+                }`}
+              >
+                <CalendarIcon className="w-5 h-5 mr-3" />
+                ONBEDAY
+              </button>
+              
+              <button 
+                onClick={() => { setViewState({ type: 'SETTINGS' }); setIsMobileMenuOpen(false); }}
+                className={`w-full flex items-center px-4 py-3.5 rounded-xl font-bold transition-all ${
+                  viewState.type === 'SETTINGS' 
+                    ? 'bg-gradient-to-r from-pink-600 to-purple-700 text-white shadow-lg border border-pink-500/20' 
+                    : 'text-indigo-200 hover:bg-white/5 hover:text-white'
+                }`}
+              >
+                <SettingsIcon className="w-5 h-5 mr-3" />
+                Impostazioni
+              </button>
+            </nav>
+
+            <div className="bg-indigo-900/40 border border-indigo-800/50 rounded-xl p-4 mt-8">
+              <div className="flex items-center justify-between mb-2">
+                 <p className="text-[10px] text-indigo-300 font-bold uppercase tracking-wider">Sync Status</p>
+                 {isCloud ? <Cloud className={`w-3 h-3 ${firebaseError ? 'text-red-500 animate-pulse' : 'text-green-400'}`} /> : <CloudOff className="w-3 h-3 text-gray-400" />}
+              </div>
+              <div className="text-[10px] text-indigo-200 font-semibold flex items-center justify-between">
+                 <span>{isCloud ? (firebaseError ? 'Errore Permessi' : 'Cloud Sync') : 'Local Only'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex bg-indigo-950 text-white w-64 flex-shrink-0 flex-col shadow-2xl z-20 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none opacity-20">
              <div className="absolute top-[-50px] left-[-50px] w-40 h-40 bg-pink-600 rounded-full blur-[60px]"></div>
         </div>
@@ -351,7 +454,7 @@ export default function App() {
         </div>
       </aside>
 
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen bg-slate-50/50">
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto h-[calc(100vh-64px)] md:h-screen bg-slate-50/50">
         <div className="max-w-7xl mx-auto pb-10">
           {renderContent()}
         </div>
