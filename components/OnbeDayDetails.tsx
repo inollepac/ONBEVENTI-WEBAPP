@@ -512,44 +512,62 @@ export const OnbeDayDetails: React.FC<OnbeDayDetailsProps> = ({
 
         <div className="lg:col-span-2 flex flex-col h-full">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full overflow-hidden">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-white">
-              <div className="flex items-center gap-3"><div className="p-2 bg-pink-100 text-pink-600 rounded-lg"><Users className="w-5 h-5" /></div><div><h2 className="font-bold text-gray-900 text-lg">Membri Partecipanti</h2><p className="text-xs text-gray-500">Gestisci partecipazioni e pagamenti</p></div></div>
-              <div className="flex gap-2">
-                <div className="flex bg-gray-100 p-1 rounded-xl mr-2">
+            <div className="p-4 md:p-6 border-b border-gray-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-pink-100 text-pink-600 rounded-lg shrink-0">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-gray-900 text-lg">Membri Partecipanti</h2>
+                  <p className="text-xs text-gray-500">Gestisci partecipazioni e pagamenti</p>
+                </div>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full xl:w-auto">
+                <div className="flex bg-gray-100 p-1 rounded-xl w-full sm:w-auto overflow-x-auto shrink-0 justify-between sm:justify-start">
                   <button 
                     onClick={() => setViewMode('attendees')} 
-                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'attendees' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    className={`flex-1 sm:flex-initial text-center px-4 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${viewMode === 'attendees' ? 'bg-white text-indigo-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                   >
                     Iscritti ({attendees.length})
                   </button>
                   <button 
                     onClick={() => setViewMode('waiting')} 
-                    className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'waiting' ? 'bg-white text-pink-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    className={`flex-1 sm:flex-initial text-center px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 whitespace-nowrap ${viewMode === 'waiting' ? 'bg-white text-pink-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                   >
                     In Attesa ({waitingList.length})
-                    {waitingList.length > 0 && <span className="w-2 h-2 bg-pink-500 rounded-full animate-pulse"></span>}
+                    {waitingList.length > 0 && <span className="w-2 h-2 bg-pink-500 rounded-full animate-pulse shrink-0"></span>}
                   </button>
                 </div>
+                
                 <button 
                   onClick={handleQuickToggleWaiverReq}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm ${onbeDay.requiresWaiver ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-white text-gray-400 border-gray-100 hover:border-indigo-200'}`}
+                  className={`flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm w-full sm:w-auto shrink-0 ${onbeDay.requiresWaiver ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-white text-gray-400 border-gray-100 hover:border-indigo-200'}`}
                   title={onbeDay.requiresWaiver ? "Liberatoria richiesta per questo evento" : "Liberatoria NON richiesta"}
                 >
-                  <ShieldCheck className={`w-3.5 h-3.5 ${onbeDay.requiresWaiver ? 'text-white' : 'text-gray-300'}`} />
-                  {onbeDay.requiresWaiver ? 'Liberatoria: ON' : 'Liberatoria: OFF'}
+                  <ShieldCheck className={`w-3.5 h-3.5 shrink-0 ${onbeDay.requiresWaiver ? 'text-white' : 'text-gray-300'}`} />
+                  <span>{onbeDay.requiresWaiver ? 'Liberatoria: ON' : 'Liberatoria: OFF'}</span>
                 </button>
-                <div className="w-px h-8 bg-gray-100 mx-1"></div>
-                <Button onClick={() => setShowAddAttendee(!showAddAttendee)} variant="primary" className="text-xs" type="button"><UserPlus className="w-4 h-4 mr-2" /> Aggiungi</Button>
+                
+                <Button 
+                  onClick={() => setShowAddAttendee(!showAddAttendee)} 
+                  variant="primary" 
+                  className="text-xs py-2 px-4 w-full sm:w-auto flex justify-center items-center shrink-0 uppercase tracking-wider font-bold h-10" 
+                  type="button"
+                >
+                  <UserPlus className="w-4 h-4 mr-2" /> 
+                  <span>Aggiungi</span>
+                </Button>
               </div>
             </div>
 
             {showAddAttendee && (
-              <div className="p-6 bg-gradient-to-r from-indigo-50 to-pink-50 border-b border-pink-100 animate-slide-down">
+              <div className="p-4 md:p-6 bg-gradient-to-r from-indigo-50 to-pink-50 border-b border-pink-100 animate-slide-down">
                 <h4 className="text-sm font-bold text-indigo-900 mb-4 uppercase tracking-wide">Nuovo Partecipante</h4>
                 <form onSubmit={handleAddAttendee} className="space-y-4 relative">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="relative">
-                      <input type="text" required className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500" value={newAttendee.name} onChange={e => handleNameChange(e.target.value)} placeholder="Nome Cognome *" autoComplete="off" />
+                      <input type="text" required className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 h-10 bg-white" value={newAttendee.name} onChange={e => handleNameChange(e.target.value)} placeholder="Nome Cognome *" autoComplete="off" />
                       {suggestions.length > 0 && (
                         <div className="absolute z-[70] left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden animate-scale-in">
                            <ul className="divide-y divide-gray-50">
@@ -558,10 +576,10 @@ export const OnbeDayDetails: React.FC<OnbeDayDetailsProps> = ({
                         </div>
                       )}
                     </div>
-                    <input type="email" className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm" value={newAttendee.email} onChange={e => setNewAttendee(prev => ({ ...prev, email: e.target.value }))} placeholder="Email" />
-                    <input type="tel" className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm" value={newAttendee.phone} onChange={e => setNewAttendee(prev => ({ ...prev, phone: e.target.value }))} placeholder="Telefono" />
+                    <input type="email" className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm h-10 bg-white" value={newAttendee.email} onChange={e => setNewAttendee(prev => ({ ...prev, email: e.target.value }))} placeholder="Email" />
+                    <input type="tel" className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm h-10 bg-white" value={newAttendee.phone} onChange={e => setNewAttendee(prev => ({ ...prev, phone: e.target.value }))} placeholder="Telefono" />
                     <select 
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 bg-white"
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 bg-white h-10"
                       value={newAttendee.gender}
                       onChange={e => setNewAttendee(prev => ({ ...prev, gender: e.target.value }))}
                     >
@@ -571,9 +589,12 @@ export const OnbeDayDetails: React.FC<OnbeDayDetailsProps> = ({
                       <option value="Other">Altro / N.D.</option>
                     </select>
                   </div>
-                  <div className="flex justify-between items-center pt-2">
-                    <input type="number" step="0.01" className="max-w-[200px] px-4 py-2 border border-gray-200 rounded-lg text-sm font-bold text-pink-600 bg-white" value={newAttendee.paidAmount} onChange={e => setNewAttendee(prev => ({ ...prev, paidAmount: e.target.value }))} placeholder={`Quota (Std: €${onbeDay.cost})`} />
-                    <div className="flex gap-2"><Button type="button" variant="ghost" onClick={() => setShowAddAttendee(false)}>Chiudi</Button><Button type="submit" isLoading={loading}>Inserisci</Button></div>
+                  <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 pt-2">
+                    <input type="number" step="0.01" className="w-full sm:max-w-[200px] px-4 py-2 border border-gray-200 rounded-lg text-sm font-bold text-pink-600 bg-white h-10" value={newAttendee.paidAmount} onChange={e => setNewAttendee(prev => ({ ...prev, paidAmount: e.target.value }))} placeholder={`Quota (Std: €${onbeDay.cost})`} />
+                    <div className="flex gap-2">
+                      <Button type="button" variant="ghost" className="flex-1 sm:flex-initial h-10" onClick={() => setShowAddAttendee(false)}>Chiudi</Button>
+                      <Button type="submit" className="flex-1 sm:flex-initial h-10" isLoading={loading}>Inserisci</Button>
+                    </div>
                   </div>
                 </form>
               </div>
