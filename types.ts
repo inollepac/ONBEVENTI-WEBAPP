@@ -57,6 +57,26 @@ export interface AppEvent {
 
 export interface OnbeDay extends AppEvent {}
 
+export interface ShopProduct {
+  id: string;
+  name: string;
+  quantity: number;
+  costPrice: number;       // Costo di acquisto
+  sellingPrice: number;    // Prezzo di vendita consigliato/standard
+  createdAt: string;
+}
+
+export interface ShopSale {
+  id: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  soldPrice: number;       // Prezzo a cui è stato venduto (0 se omaggio)
+  buyerName: string;       // Nome acquirente (testo libero o membro selezionato)
+  isGift: boolean;         // true se omaggio
+  date: string;
+}
+
 export type ViewState = 
   | { type: 'DASHBOARD' }
   | { type: 'CREATE_EVENT' }
@@ -70,4 +90,5 @@ export type ViewState =
   | { type: 'PARTICIPANT_DETAILS'; participantKey: string }
   | { type: 'IDEAS' }
   | { type: 'ONBEDAY_LIST' }
-  | { type: 'ONBEVENTI_LIST' };
+  | { type: 'ONBEVENTI_LIST' }
+  | { type: 'SHOP' };

@@ -13,7 +13,8 @@ import { IdeasView } from './components/IdeasView';
 import { OnbeDayList } from './components/OnbeDayList';
 import { OnbeDayForm } from './components/OnbeDayForm';
 import { OnbeDayDetails } from './components/OnbeDayDetails';
-import { LayoutDashboard, Settings as SettingsIcon, Cloud, CloudOff, RefreshCw, Users, AlertTriangle, X, Lightbulb, Calendar as CalendarIcon, Ticket, Menu } from 'lucide-react';
+import { OnbeShop } from './components/OnbeShop';
+import { LayoutDashboard, Settings as SettingsIcon, Cloud, CloudOff, RefreshCw, Users, AlertTriangle, X, Lightbulb, Calendar as CalendarIcon, Ticket, Menu, ShoppingBag } from 'lucide-react';
 
 export default function App() {
   const [viewState, setViewState] = useState<ViewState>({ type: 'DASHBOARD' });
@@ -235,6 +236,15 @@ export default function App() {
       case 'SETTINGS':
         return <Settings onBack={navigateToDashboard} />;
 
+      case 'SHOP':
+        return (
+          <OnbeShop 
+            onBack={navigateToDashboard}
+            events={events}
+            onbeDays={onbeDays}
+          />
+        );
+
       default:
         return <div>View not found</div>;
     }
@@ -325,6 +335,18 @@ export default function App() {
               >
                 <CalendarIcon className="w-5 h-5 mr-3" />
                 ONBEDAY
+              </button>
+              
+              <button 
+                onClick={() => { setViewState({ type: 'SHOP' }); setIsMobileMenuOpen(false); }}
+                className={`w-full flex items-center px-4 py-3.5 rounded-xl font-bold transition-all ${
+                  viewState.type === 'SHOP'
+                    ? 'bg-gradient-to-r from-pink-600 to-purple-700 text-white shadow-lg border border-pink-500/20' 
+                    : 'text-indigo-200 hover:bg-white/5 hover:text-white'
+                }`}
+              >
+                <ShoppingBag className="w-5 h-5 mr-3" />
+                ONBEShop
               </button>
               
               <button 
@@ -422,6 +444,18 @@ export default function App() {
             >
               <CalendarIcon className="w-5 h-5 mr-3" />
               ONBEDAY
+            </button>
+            
+            <button 
+              onClick={() => setViewState({ type: 'SHOP' })}
+              className={`w-full flex items-center px-4 py-3.5 rounded-xl transition-all duration-300 font-medium ${
+                viewState.type === 'SHOP'
+                  ? 'bg-gradient-to-r from-pink-600 to-purple-700 text-white shadow-lg border border-pink-500/30' 
+                  : 'text-indigo-200 hover:bg-white/5 hover:text-white border border-transparent'
+              }`}
+            >
+              <ShoppingBag className="w-5 h-5 mr-3" />
+              ONBEShop
             </button>
             
             <button 

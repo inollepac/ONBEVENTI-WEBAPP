@@ -1,5 +1,5 @@
 
-import { AppEvent, Attendee, EventIdea, Expense, ExtraExpense, OnbeDay, PaymentStatus } from '../types';
+import { AppEvent, Attendee, EventIdea, Expense, ExtraExpense, OnbeDay, PaymentStatus, ShopProduct, ShopSale } from '../types';
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, getDoc, updateDoc } from "firebase/firestore";
 
@@ -8,6 +8,8 @@ const ONBEDAY_KEY = 'onbe_onbeday_v1';
 const EXTRA_EXPENSES_KEY = 'onbe_extra_expenses_v1';
 const IDEAS_KEY = 'onbe_ideas_v1';
 const FIREBASE_CONFIG_KEY = 'onbe_firebase_config';
+const SHOP_PRODUCTS_KEY = 'onbe_shop_products_v1';
+const SHOP_SALES_KEY = 'onbe_shop_sales_v1';
 
 // Migration logic for rebranding from onbeventi to onbe
 const migrateData = () => {
@@ -642,5 +644,114 @@ export const deleteOnbeDay = async (id: string): Promise<void> => {
   } else {
     const list = (await getOnbeDays()).filter(e => e.id !== id);
     localStorage.setItem(ONBEDAY_KEY, JSON.stringify(list));
+  }
+};
+
+// ONBEShop Inventory and Sales Methods
+export const getShopProducts = async (): Promise<ShopProduct[]> => {
+  const db = getDb();
+  if (db) {
+    try {
+      const querySnapshot = await getDocs(collection(db, "shop_products"));
+      const list: ShopProduct[] = [];
+      querySnapshot.forEach((doc) => { 
+        const data = doc.data() as ShopProduct;
+        list.push(data); 
+      });
+      return list;
+    } catch (e: any) { 
+      if (e.code === 'permission-denied') throw new Error('FIREBASE_PERMISSION_DENIED');
+      return []; 
+    }
+  } else {
+    const data = localStorage.getItem(SHOP_PRODUCTS_KEY);
+    return data ? JSON.parse(data) : [];
+  }
+};
+
+export const saveShopProduct = async (product: ShopProduct): Promise<void> => {
+  const db = getDb();
+  const cleanProd = cleanForFirebase(product);
+  if (db) {
+    try {
+      await setDoc(doc(db, "shop_products", product.id), cleanProd);
+    } catch (e: any) {
+      if (e.code === 'permission-denied') throw new Error('FIREBASE_PERMISSION_DENIED');
+      throw e;
+    }
+  } else {
+    const list = await getShopProducts();
+    const idx = list.findIndex(p => p.id === product.id);
+    if (idx >= 0) list[idx] = cleanProd; else list.push(cleanProd);
+    localStorage.setItem(SHOP_PRODUCTS_KEY, JSON.stringify(list));
+  }
+};
+
+export const deleteShopProduct = async (id: string): Promise<void> => {
+  const db = getDb();
+  if (db) {
+    try {
+      await deleteDoc(doc(db, "shop_products", id));
+    } catch (e: any) {
+      if (e.code === 'permission-denied') throw new Error('FIREBASE_PERMISSION_DENIED');
+      throw e;
+    }
+  } else {
+    const list = (await getShopProducts()).filter(p => p.id !== id);
+    localStorage.setItem(SHOP_PRODUCTS_KEY, JSON.stringify(list));
+  }
+};
+
+export const getShopSales = async (): Promise<ShopSale[]> => {
+  const db = getDb();
+  if (db) {
+    try {
+      const querySnapshot = await getDocs(collection(db, "shop_sales"));
+      const list: ShopSale[] = [];
+      querySnapshot.forEach((doc) => { 
+        const data = doc.data() as ShopSale;
+        list.push(data); 
+      });
+      return list;
+    } catch (e: any) { 
+      if (e.code === 'permission-denied') throw new Error('FIREBASE_PERMISSION_DENIED');
+      return []; 
+    }
+  } else {
+    const data = localStorage.getItem(SHOP_SALES_KEY);
+    return data ? JSON.parse(data) : [];
+  }
+};
+
+export const saveShopSale = async (sale: ShopSale): Promise<void> => {
+  const db = getDb();
+  const cleanSaleData = cleanForFirebase(sale);
+  if (db) {
+    try {
+      await setDoc(doc(db, "shop_sales", sale.id), cleanSaleData);
+    } catch (e: any) {
+      if (e.code === 'permission-denied') throw new Error('FIREBASE_PERMISSION_DENIED');
+      throw e;
+    }
+  } else {
+    const list = await getShopSales();
+    const idx = list.findIndex(s => s.id === sale.id);
+    if (idx >= 0) list[idx] = cleanSaleData; else list.push(cleanSaleData);
+    localStorage.setItem(SHOP_SALES_KEY, JSON.stringify(list));
+  }
+};
+
+export const deleteShopSale = async (id: string): Promise<void> => {
+  const db = getDb();
+  if (db) {
+    try {
+      await deleteDoc(doc(db, "shop_sales", id));
+    } catch (e: any) {
+      if (e.code === 'permission-denied') throw new Error('FIREBASE_PERMISSION_DENIED');
+      throw e;
+    }
+  } else {
+    const list = (await getShopSales()).filter(s => s.id !== id);
+    localStorage.setItem(SHOP_SALES_KEY, JSON.stringify(list));
   }
 };
