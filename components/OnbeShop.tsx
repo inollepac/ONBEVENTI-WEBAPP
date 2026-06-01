@@ -47,7 +47,8 @@ export const OnbeShop: React.FC<OnbeShopProps> = ({ onBack, events = [], onbeDay
     name: '',
     quantity: '',
     costPrice: '',
-    sellingPrice: ''
+    sellingPrice: '',
+    isLeftover: false
   });
 
   // Form State for Recording Sale
@@ -173,6 +174,7 @@ export const OnbeShop: React.FC<OnbeShopProps> = ({ onBack, events = [], onbeDay
       quantity: qty,
       costPrice: cost,
       sellingPrice: sell,
+      isLeftover: productForm.isLeftover,
       createdAt: isEditingProduct 
         ? (products.find(p => p.id === isEditingProduct)?.createdAt || new Date().toISOString())
         : new Date().toISOString()
@@ -181,7 +183,7 @@ export const OnbeShop: React.FC<OnbeShopProps> = ({ onBack, events = [], onbeDay
     try {
       await saveShopProduct(productData);
       setIsEditingProduct(null);
-      setProductForm({ name: '', quantity: '', costPrice: '', sellingPrice: '' });
+      setProductForm({ name: '', quantity: '', costPrice: '', sellingPrice: '', isLeftover: false });
       await loadShopData();
     } catch (err) {
       console.error("Failed to save product", err);
@@ -194,7 +196,8 @@ export const OnbeShop: React.FC<OnbeShopProps> = ({ onBack, events = [], onbeDay
       name: product.name,
       quantity: product.quantity.toString(),
       costPrice: product.costPrice.toString(),
-      sellingPrice: product.sellingPrice.toString()
+      sellingPrice: product.sellingPrice.toString(),
+      isLeftover: product.isLeftover || false
     });
   };
 
@@ -797,6 +800,22 @@ export const OnbeShop: React.FC<OnbeShopProps> = ({ onBack, events = [], onbeDay
                     />
                   </div>
 
+                  <div className="flex items-start gap-3 bg-slate-50 border border-slate-100 p-4 rounded-xl">
+                    <input 
+                      type="checkbox"
+                      id="isLeftoverCheckbox"
+                      className="mt-1 h-4 w-4 text-pink-600 border-gray-200 rounded focus:ring-pink-500 cursor-pointer"
+                      checked={productForm.isLeftover}
+                      onChange={e => setProductForm(p => ({ ...p, isLeftover: e.target.checked }))}
+                    />
+                    <label htmlFor="isLeftoverCheckbox" className="text-xs font-bold text-gray-700 cursor-pointer select-none">
+                      Rimanenze degli Eventi
+                      <span className="text-[10px] text-gray-400 font-medium block mt-1 normal-case leading-normal">
+                        Se attivo, il costo unitario è già calcolato nelle spese di bilancio dell'evento. Se disattivo, verrà considerato come acquisto dedicato e aggiunto alle spese generali.
+                      </span>
+                    </label>
+                  </div>
+
                   <div className="flex gap-2 pt-2">
                     {isEditingProduct && (
                       <button 
@@ -804,7 +823,7 @@ export const OnbeShop: React.FC<OnbeShopProps> = ({ onBack, events = [], onbeDay
                         className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all"
                         onClick={() => {
                           setIsEditingProduct(null);
-                          setProductForm({ name: '', quantity: '', costPrice: '', sellingPrice: '' });
+                          setProductForm({ name: '', quantity: '', costPrice: '', sellingPrice: '', isLeftover: false });
                         }}
                       >
                         Annulla
@@ -867,7 +886,18 @@ export const OnbeShop: React.FC<OnbeShopProps> = ({ onBack, events = [], onbeDay
 
                           return (
                             <tr key={p.id} className="hover:bg-pink-50/10 transition-colors">
-                              <td className="px-6 py-4 font-extrabold text-gray-900">{p.name}</td>
+                              <td className="px-6 py-4 font-extrabold text-gray-900">
+                                <div>
+                                  <span className="block">{p.name}</span>
+                                  <span className={`inline-block text-[9px] font-black uppercase tracking-wider py-0.5 px-2 rounded-full border mt-1.5 ${
+                                    p.isLeftover 
+                                      ? 'bg-indigo-50 text-indigo-700 border-indigo-200/50' 
+                                      : 'bg-green-50 text-green-700 border-green-200/50'
+                                  }`}>
+                                    {p.isLeftover ? 'Rimanenza Evento 📦' : 'Acquisto Dedicato 💰'}
+                                  </span>
+                                </div>
+                              </td>
                               <td className="px-6 py-4 text-center font-black">
                                 <span className={`px-3 py-1 rounded-full ${p.quantity === 0 ? 'bg-red-50 text-red-600' : p.quantity <= 2 ? 'bg-amber-55 text-amber-700 bg-amber-50' : 'text-gray-800'}`}>
                                   {p.quantity} pz
@@ -921,7 +951,16 @@ export const OnbeShop: React.FC<OnbeShopProps> = ({ onBack, events = [], onbeDay
                       return (
                         <div key={p.id} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-3">
                           <div className="flex justify-between items-start gap-3">
-                            <h4 className="font-extrabold text-gray-900 text-base">{p.name}</h4>
+                            <div>
+                              <h4 className="font-extrabold text-gray-900 text-base">{p.name}</h4>
+                              <span className={`inline-block text-[9px] font-black uppercase tracking-wider py-0.5 px-2 rounded-full border mt-1.5 ${
+                                p.isLeftover 
+                                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200/50' 
+                                  : 'bg-green-50 text-green-700 border-green-200/50'
+                              }`}>
+                                {p.isLeftover ? 'Rimanenza Evento 📦' : 'Acquisto Dedicato 💰'}
+                              </span>
+                            </div>
                             <span className={`text-xs font-black px-3 py-1 rounded-full shrink-0 ${p.quantity === 0 ? 'bg-red-50 text-red-600' : p.quantity <= 2 ? 'bg-amber-50 text-amber-700' : 'bg-slate-50 text-slate-800'}`}>
                               {p.quantity} pz
                             </span>

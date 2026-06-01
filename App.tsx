@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
-import { ViewState, AppEvent, ExtraExpense, EventIdea, OnbeDay } from './types';
-import { getEvents, saveEvent, isCloudEnabled, getExtraExpenses, getEventIdeas, getOnbeDays, saveOnbeDay } from './services/storageService';
+import { ViewState, AppEvent, ExtraExpense, EventIdea, OnbeDay, ShopProduct, ShopSale } from './types';
+import { getEvents, saveEvent, isCloudEnabled, getExtraExpenses, getEventIdeas, getOnbeDays, saveOnbeDay, getShopProducts, getShopSales } from './services/storageService';
 import { Dashboard } from './components/Dashboard';
 import { EventForm } from './components/EventForm';
 import { EventDetails } from './components/EventDetails';
@@ -23,6 +23,8 @@ export default function App() {
   const [onbeDays, setOnbeDays] = useState<OnbeDay[]>([]);
   const [extraExpenses, setExtraExpenses] = useState<ExtraExpense[]>([]);
   const [ideas, setIdeas] = useState<EventIdea[]>([]);
+  const [shopProducts, setShopProducts] = useState<ShopProduct[]>([]);
+  const [shopSales, setShopSales] = useState<ShopSale[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCloud, setIsCloud] = useState(false);
   const [firebaseError, setFirebaseError] = useState(false);
@@ -36,16 +38,20 @@ export default function App() {
     setIsCloud(isCloudEnabled());
     setFirebaseError(false);
     try {
-      const [eventsData, expensesData, ideasData, onbeDaysData] = await Promise.all([
+      const [eventsData, expensesData, ideasData, onbeDaysData, shopProductsData, shopSalesData] = await Promise.all([
         getEvents(),
         getExtraExpenses(),
         getEventIdeas(),
-        getOnbeDays()
+        getOnbeDays(),
+        getShopProducts(),
+        getShopSales()
       ]);
       setEvents(eventsData);
       setExtraExpenses(expensesData);
       setIdeas(ideasData);
       setOnbeDays(onbeDaysData);
+      setShopProducts(shopProductsData);
+      setShopSales(shopSalesData);
     } catch (e: any) {
       console.error("Failed to load data", e);
       if (e.message === 'FIREBASE_PERMISSION_DENIED') {
@@ -109,6 +115,8 @@ export default function App() {
             events={events} 
             onbeDays={onbeDays}
             extraExpenses={extraExpenses}
+            shopProducts={shopProducts}
+            shopSales={shopSales}
             onCreateClick={() => setViewState({ type: 'CREATE_EVENT' })}
             onEventClick={(id) => setViewState({ type: 'EVENT_DETAILS', eventId: id })}
             onIdeasClick={() => setViewState({ type: 'IDEAS' })}

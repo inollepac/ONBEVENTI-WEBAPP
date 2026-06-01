@@ -64,6 +64,7 @@ export interface ShopProduct {
   costPrice: number;       // Costo di acquisto
   sellingPrice: number;    // Prezzo di vendita consigliato/standard
   createdAt: string;
+  isLeftover?: boolean;    // true se sono rimanenze degli eventi (costo già a bilancio nelle spese degli eventi), false o undefined altrimenti
 }
 
 export interface ShopSale {

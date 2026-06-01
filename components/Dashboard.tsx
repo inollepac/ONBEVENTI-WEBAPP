@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
-import { AppEvent, ExtraExpense, PaymentStatus, OnbeDay } from '../types';
+import { AppEvent, ExtraExpense, PaymentStatus, OnbeDay, ShopProduct, ShopSale } from '../types';
 import { Calendar, DollarSign, Users, Plus, ArrowRight, MapPin, Clock, Ticket, TrendingDown, Wallet, History, Receipt, Trash2, Save, Filter, ChevronDown, BarChart3, Lightbulb, LayoutGrid } from 'lucide-react';
 import { Button } from './Button';
 import { generateId, saveExtraExpense, deleteExtraExpense } from '../services/storageService';
@@ -9,6 +9,8 @@ interface DashboardProps {
   events: AppEvent[];
   onbeDays: OnbeDay[];
   extraExpenses: ExtraExpense[];
+  shopProducts?: ShopProduct[];
+  shopSales?: ShopSale[];
   onCreateClick: () => void;
   onEventClick: (id: string) => void;
   onIdeasClick: () => void;
@@ -19,7 +21,7 @@ interface DashboardProps {
 
 type StatsCategory = 'totale' | 'onbeventi' | 'onbeday';
 
-export const Dashboard: React.FC<DashboardProps> = ({ events, onbeDays, extraExpenses, onCreateClick, onEventClick, onIdeasClick, onOnbeDayClick, onOnbeventiClick, onRefresh }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ events, onbeDays, extraExpenses, shopProducts = [], shopSales = [], onCreateClick, onEventClick, onIdeasClick, onOnbeDayClick, onOnbeventiClick, onRefresh }) => {
   const [showAddExtra, setShowAddExtra] = useState(false);
   const [newExtra, setNewExtra] = useState({ description: '', amount: '' });
   const [loading, setLoading] = useState(false);
@@ -32,8 +34,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, onbeDays, extraExp
     events.forEach(e => years.add(new Date(e.date).getFullYear().toString()));
     onbeDays.forEach(e => years.add(new Date(e.date).getFullYear().toString()));
     extraExpenses.forEach(e => years.add(new Date(e.date).getFullYear().toString()));
+    (shopSales || []).forEach(s => years.add(new Date(s.date).getFullYear().toString()));
+    (shopProducts || []).forEach(p => years.add(new Date(p.createdAt).getFullYear().toString()));
     return Array.from(years).sort((a, b) => b.localeCompare(a));
-  }, [events, onbeDays, extraExpenses]);
+  }, [events, onbeDays, extraExpenses, shopSales, shopProducts]);
 
   const stats = useMemo(() => {
     const today = new Date();
@@ -42,11 +46,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, onbeDays, extraExp
     // Filtro per anno
     const filterByYear = (items: any[]) => selectedYear === 'all' 
       ? items 
-      : items.filter(e => new Date(e.date).getFullYear().toString() === selectedYear);
+      : items.filter(e => {
+          const itemDate = e.date || e.createdAt;
+          return itemDate ? new Date(itemDate).getFullYear().toString() === selectedYear : false;
+        });
 
     const filteredEvents = filterByYear(events);
     const filteredOnbeDays = filterByYear(onbeDays);
     const filteredExtraExpenses = filterByYear(extraExpenses);
+    const filteredShopSales = filterByYear(shopSales || []);
+    const filteredShopProducts = filterByYear(shopProducts || []);
 
     // Selezione dati in base alla categoria statistiche
     let targetEvents: (AppEvent | OnbeDay)[] = [];
@@ -89,15 +98,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, onbeDays, extraExp
       return acc + (curr.expenses || []).reduce((sum, exp) => sum + exp.amount, 0);
     }, 0);
 
-    // Le spese extra sono considerate solo nel totale o se l'utente le associa (ma qui sono globali)
-    // Per semplicità le mostriamo solo nel totale o le dividiamo? 
-    // Il prompt chiede statistiche divise. Selezioniamo spese extra solo per totale per ora o le includiamo sempre?
-    // Facciamo che le spese extra contano solo nel totale.
+    // Le spese extra sono considerate solo nel totale
     const currentExtraExpenses = statsCategory === 'totale' ? filteredExtraExpenses : [];
     const totalExtraExpenses = currentExtraExpenses.reduce((acc, curr) => acc + curr.amount, 0);
     
-    const totalExpenses = totalEventExpenses + totalExtraExpenses;
-    const totalProfit = totalRevenue - totalExpenses;
+    // ONBEShop calculations
+    let shopRevenue = 0;
+    let shopExpense = 0;
+
+    if (statsCategory === 'totale') {
+      // 1. Entrate dello shop
+      shopRevenue = filteredShopSales.reduce((sum, sale) => sum + (sale.soldPrice * sale.quantity), 0);
+
+      // 2. Costo stock per articoli che NON sono rimanenze degli eventi
+      filteredShopProducts.forEach(prod => {
+        if (!prod.isLeftover) {
+          const totalSoldQtyOfThisProduct = (shopSales || [])
+            .filter(s => s.productId === prod.id)
+            .reduce((sum, s) => sum + s.quantity, 0);
+          const originalBoughtQty = prod.quantity + totalSoldQtyOfThisProduct;
+          shopExpense += originalBoughtQty * prod.costPrice;
+        }
+      });
+    }
+
+    const totalExpenses = totalEventExpenses + totalExtraExpenses + shopExpense;
+    const finalRevenue = totalRevenue + shopRevenue;
+    const totalProfit = finalRevenue - totalExpenses;
 
     const totalEventsCount = targetEvents.length;
     const totalParticipations = targetEvents.reduce((acc, curr) => 
@@ -108,14 +135,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, onbeDays, extraExp
       pastEvents,
       upcomingOnbeDays,
       pastOnbeDays,
-      totalRevenue, 
+      totalRevenue: finalRevenue, 
       totalExpenses, 
       totalProfit, 
       filteredExtraExpenses,
       totalEventsCount,
-      totalParticipations
+      totalParticipations,
+      shopRevenue,
+      shopExpense
     };
-  }, [events, onbeDays, extraExpenses, selectedYear, statsCategory]);
+  }, [events, onbeDays, extraExpenses, shopProducts, shopSales, selectedYear, statsCategory]);
 
   const handleAddExtra = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -291,7 +320,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, onbeDays, extraExp
         </div>
 
         {/* 2. Incasso Globale */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden flex flex-col justify-between">
            <div className="absolute top-0 right-0 w-20 h-20 bg-green-50 rounded-bl-full -mr-4 -mt-4"></div>
            <div className="relative">
             <div className="p-3 bg-green-100 w-fit rounded-xl text-green-600 mb-4 shadow-sm">
@@ -299,11 +328,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, onbeDays, extraExp
             </div>
             <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Incasso {statsCategory !== 'totale' ? statsCategory : (selectedYear === 'all' ? 'Globale' : selectedYear)}</p>
             <p className="text-3xl font-black text-gray-900 mt-1">€ {stats.totalRevenue.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
+            
+            {statsCategory === 'totale' && stats.shopRevenue > 0 && (
+              <div className="mt-3 text-[10px] text-green-700 bg-green-50 border border-green-100/55 rounded-lg py-1 px-2 font-bold flex items-center justify-between">
+                <span>Di cui Shop:</span>
+                <span>+ € {stats.shopRevenue.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+            )}
           </div>
         </div>
 
         {/* 3. Uscite Totali */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden flex flex-col justify-between">
            <div className="absolute top-0 right-0 w-20 h-20 bg-red-50 rounded-bl-full -mr-4 -mt-4"></div>
            <div className="relative">
             <div className="p-3 bg-red-100 w-fit rounded-xl text-red-600 mb-4 shadow-sm">
@@ -311,6 +347,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, onbeDays, extraExp
             </div>
             <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Uscite {statsCategory !== 'totale' ? statsCategory : (selectedYear === 'all' ? 'Totali' : selectedYear)}</p>
             <p className="text-3xl font-black text-gray-900 mt-1">€ {stats.totalExpenses.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
+            
+            {statsCategory === 'totale' && stats.shopExpense > 0 && (
+              <div className="mt-3 text-[10px] text-red-700 bg-red-50 border border-red-100/55 rounded-lg py-1 px-2 font-bold flex items-center justify-between">
+                <span>Di cui Acquisti Shop:</span>
+                <span>- € {stats.shopExpense.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+            )}
           </div>
         </div>
 
