@@ -14,11 +14,13 @@ import { OnbeDayList } from './components/OnbeDayList';
 import { OnbeDayForm } from './components/OnbeDayForm';
 import { OnbeDayDetails } from './components/OnbeDayDetails';
 import { OnbeShop } from './components/OnbeShop';
-import { LayoutDashboard, Settings as SettingsIcon, Cloud, CloudOff, RefreshCw, Users, AlertTriangle, X, Lightbulb, Calendar as CalendarIcon, Ticket, Menu, ShoppingBag } from 'lucide-react';
+import { InstallAppModal } from './components/InstallAppModal';
+import { LayoutDashboard, Settings as SettingsIcon, Cloud, CloudOff, RefreshCw, Users, AlertTriangle, X, Lightbulb, Calendar as CalendarIcon, Ticket, Menu, ShoppingBag, Smartphone } from 'lucide-react';
 
 export default function App() {
   const [viewState, setViewState] = useState<ViewState>({ type: 'DASHBOARD' });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [events, setEvents] = useState<AppEvent[]>([]);
   const [onbeDays, setOnbeDays] = useState<OnbeDay[]>([]);
   const [extraExpenses, setExtraExpenses] = useState<ExtraExpense[]>([]);
@@ -273,12 +275,23 @@ export default function App() {
       {/* Mobile Top Header Bar */}
       <header className="md:hidden bg-indigo-950 text-white px-5 py-4 flex items-center justify-between shadow-md z-30 sticky top-0 border-b border-indigo-900/50">
         <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-pink-500/20 border border-pink-400/30 overflow-hidden shrink-0 p-0.5">
+            <img src="/logo.png" alt="O.N.B.E." className="w-full h-full object-cover rounded" />
+          </div>
           <span className="text-xl font-black text-pink-400">ON</span>
           <span className="text-xl font-black text-yellow-400">BE</span>
           <span className="text-[10px] font-black text-indigo-300 uppercase tracking-widest bg-indigo-900/50 px-2 py-0.5 rounded border border-indigo-800/50">CRM</span>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setIsInstallModalOpen(true)}
+            className="flex items-center gap-1.5 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white text-[11px] font-black px-3 py-1.5 rounded-xl shadow-sm border border-pink-400/30"
+          >
+            <Smartphone className="w-3.5 h-3.5" />
+            <span>App</span>
+          </button>
+
           <button onClick={refreshData} className="p-2 bg-indigo-900/40 rounded-xl hover:text-white transition-all border border-indigo-800/30" title="Ricarica Dati">
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
@@ -368,6 +381,16 @@ export default function App() {
                 <SettingsIcon className="w-5 h-5 mr-3" />
                 Impostazioni
               </button>
+
+              <div className="pt-4 border-t border-indigo-900/50">
+                <button 
+                  onClick={() => { setIsInstallModalOpen(true); setIsMobileMenuOpen(false); }}
+                  className="w-full flex items-center px-4 py-3.5 rounded-xl font-black text-amber-300 bg-amber-400/10 border border-amber-400/20 hover:bg-amber-400/20 transition-all"
+                >
+                  <Smartphone className="w-5 h-5 mr-3 text-amber-400" />
+                  Installa App Mobile
+                </button>
+              </div>
             </nav>
 
             <div className="bg-indigo-900/40 border border-indigo-800/50 rounded-xl p-4 mt-8">
@@ -477,6 +500,14 @@ export default function App() {
               <SettingsIcon className="w-5 h-5 mr-3" />
               Impostazioni
             </button>
+
+            <button 
+              onClick={() => setIsInstallModalOpen(true)}
+              className="w-full flex items-center px-4 py-3.5 rounded-xl font-bold text-amber-300 bg-amber-400/10 border border-amber-400/20 hover:bg-amber-400/20 transition-all mt-4"
+            >
+              <Smartphone className="w-5 h-5 mr-3 text-amber-400" />
+              Installa App
+            </button>
           </nav>
         </div>
         
@@ -501,6 +532,11 @@ export default function App() {
           {renderContent()}
         </div>
       </main>
+
+      <InstallAppModal 
+        isOpen={isInstallModalOpen} 
+        onClose={() => setIsInstallModalOpen(false)} 
+      />
     </div>
   );
 }
