@@ -8,6 +8,11 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, (process as any).cwd(), '');
   return {
     plugins: [react()],
+    server: {
+      host: '0.0.0.0',
+      port: 3000,
+      strictPort: true
+    },
     define: {
       // Questo permette al codice esistente "process.env.API_KEY" di funzionare
       // mappandolo alla variabile d'ambiente reale durante la build.

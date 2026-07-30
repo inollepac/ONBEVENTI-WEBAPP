@@ -1,5 +1,6 @@
 {
   "name": "ONBE",
   "description": "Piattaforma di gestione eventi per ONBE. Gestione iscritti, pagamenti e pianificazione con supporto AI.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
