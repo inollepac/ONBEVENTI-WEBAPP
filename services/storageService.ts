@@ -755,3 +755,39 @@ export const deleteShopSale = async (id: string): Promise<void> => {
     localStorage.setItem(SHOP_SALES_KEY, JSON.stringify(list));
   }
 };
+
+export const testFirebaseConnection = async (): Promise<{ success: boolean; message: string; code?: string }> => {
+  const configStr = localStorage.getItem(FIREBASE_CONFIG_KEY);
+  if (!configStr || !configStr.trim()) {
+    return { success: false, message: 'Nessuna configurazione Firebase inserita. L\'app sta utilizzando la memoria locale.' };
+  }
+
+  let db;
+  try {
+    const firebaseConfig = JSON.parse(configStr);
+    if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+      return { success: false, message: 'JSON della configurazione non valido: mancano apiKey o projectId.' };
+    }
+    const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    db = getFirestore(app);
+  } catch (e: any) {
+    return { success: false, message: `Errore nella configurazione JSON: ${e.message}` };
+  }
+
+  try {
+    // Eseguiamo una lettura di prova sulla collezione events
+    await getDocs(collection(db, "events"));
+    return { success: true, message: 'Connessione Firebase attiva e perfettamente funzionante!' };
+  } catch (e: any) {
+    console.error("Test connection error:", e);
+    if (e.code === 'permission-denied' || e.message?.includes('permission-denied')) {
+      return { 
+        success: false, 
+        code: 'PERMISSION_DENIED',
+        message: 'Regole di sicurezza scadute o permessi insufficienti su Firebase Console! Le regole della "Modalità Test" di Firebase scadono dopo 30 giorni. È necessario impostare "allow read, write: if true;" su Firestore Rules.' 
+      };
+    }
+    return { success: false, message: `Errore durante la connessione a Firestore: ${e.message || e.code}` };
+  }
+};
+
