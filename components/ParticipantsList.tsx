@@ -20,6 +20,7 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [statsCategory, setStatsCategory] = useState<StatsCategory>('generale');
   const [selectedYear, setSelectedYear] = useState<string>('all');
+  const [showConvertedOnly, setShowConvertedOnly] = useState(false);
 
   const vipThreshold = Number(localStorage.getItem('onbe_vip_threshold') || '5');
   const regularThreshold = Number(localStorage.getItem('onbe_regular_threshold') || '3');
@@ -107,37 +108,6 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
 
     targetItems.forEach(item => processAttendees(item.attendees || [], item));
 
-    const fullList = Array.from(map.values()).map(item => ({
-      ...item,
-      isVip: item.eventsCount >= vipThreshold,
-      isRegular: item.eventsCount >= regularThreshold && item.eventsCount < vipThreshold
-    }));
-
-    // Consideriamo solo i membri con almeno UNA presenza effettiva per le statistiche demografiche e di ritorno
-    const activeList = fullList.filter(m => m.eventsCount > 0);
-    const totalMembersCount = fullList.length; // Totale anagrafica
-    const activeMembersCount = activeList.length; // Totale presenti almeno una volta
-
-    const multiEventCount = activeList.filter(m => m.eventsCount > 1).length;
-    const fedeleCount = activeList.filter(m => m.isRegular).length;
-    const vipCount = activeList.filter(m => m.isVip).length;
-    const totalMissingWaivers = targetItems.reduce((acc, item) => {
-      if (item.requiresWaiver !== true) return acc;
-      return acc + (item.attendees || []).filter(a => !a.hasWaiver).length;
-    }, 0);
-
-    // --- Calcolo Generi su membri ATTIVI ---
-    const maleCount = activeList.filter(m => m.attendee.gender === 'M').length;
-    const femaleCount = activeList.filter(m => m.attendee.gender === 'F').length;
-    const malePercent = activeMembersCount > 0 ? (maleCount / activeMembersCount) * 100 : 0;
-    const femalePercent = activeMembersCount > 0 ? (femaleCount / activeMembersCount) * 100 : 0;
-
-    const historicalMembers = activeList.filter(m => m.firstEventDate < latestEventDate);
-    const returningHistoricalCount = historicalMembers.filter(m => m.eventsCount > 1).length;
-    const realReturnRate = historicalMembers.length > 0 
-      ? (returningHistoricalCount / historicalMembers.length) * 100 
-      : 0;
-
     // --- Calcolo Conversione ONBEDAY -> ONBEVENTI ---
     const allYearEvents = filterByYear(events || []);
     const allYearOnbeDays = filterByYear(onbeDays || []);
@@ -193,6 +163,44 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
       ? (onbeDayConvertedToEventsCount / onbeDayNewMembersCount) * 100 
       : 0;
 
+    const fullList = Array.from(map.values()).map(item => {
+      const journey = memberJourneyMap.get(item.key);
+      const isAcquiredViaOnbeDay = journey?.firstType === 'ONBEDAY';
+      const isConvertedToOnbeventi = Boolean(isAcquiredViaOnbeDay && journey?.hasAttendedOnbeventi);
+      return {
+        ...item,
+        isVip: item.eventsCount >= vipThreshold,
+        isRegular: item.eventsCount >= regularThreshold && item.eventsCount < vipThreshold,
+        isAcquiredViaOnbeDay,
+        isConvertedToOnbeventi
+      };
+    });
+
+    // Consideriamo solo i membri con almeno UNA presenza effettiva per le statistiche demografiche e di ritorno
+    const activeList = fullList.filter(m => m.eventsCount > 0);
+    const totalMembersCount = fullList.length; // Totale anagrafica
+    const activeMembersCount = activeList.length; // Totale presenti almeno una volta
+
+    const multiEventCount = activeList.filter(m => m.eventsCount > 1).length;
+    const fedeleCount = activeList.filter(m => m.isRegular).length;
+    const vipCount = activeList.filter(m => m.isVip).length;
+    const totalMissingWaivers = targetItems.reduce((acc, item) => {
+      if (item.requiresWaiver !== true) return acc;
+      return acc + (item.attendees || []).filter(a => !a.hasWaiver).length;
+    }, 0);
+
+    // --- Calcolo Generi su membri ATTIVI ---
+    const maleCount = activeList.filter(m => m.attendee.gender === 'M').length;
+    const femaleCount = activeList.filter(m => m.attendee.gender === 'F').length;
+    const malePercent = activeMembersCount > 0 ? (maleCount / activeMembersCount) * 100 : 0;
+    const femalePercent = activeMembersCount > 0 ? (femaleCount / activeMembersCount) * 100 : 0;
+
+    const historicalMembers = activeList.filter(m => m.firstEventDate < latestEventDate);
+    const returningHistoricalCount = historicalMembers.filter(m => m.eventsCount > 1).length;
+    const realReturnRate = historicalMembers.length > 0 
+      ? (returningHistoricalCount / historicalMembers.length) * 100 
+      : 0;
+
     const stats = {
       totalMembers: totalMembersCount,
       activeMembersCount,
@@ -209,6 +217,9 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
     };
     
     let filteredList = [...fullList];
+    if (showConvertedOnly) {
+      filteredList = filteredList.filter(item => item.isConvertedToOnbeventi);
+    }
     if (searchTerm) {
       const lowerSearch = searchTerm.toLowerCase();
       filteredList = filteredList.filter(item => 
@@ -229,7 +240,7 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
     });
 
     return { list: filteredList, stats };
-  }, [events, onbeDays, searchTerm, sortKey, sortOrder, vipThreshold, regularThreshold, statsCategory, selectedYear]);
+  }, [events, onbeDays, searchTerm, sortKey, sortOrder, vipThreshold, regularThreshold, statsCategory, selectedYear, showConvertedOnly]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -333,13 +344,28 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-12 h-12 bg-purple-50 rounded-bl-full"></div>
+        <div 
+          onClick={() => setShowConvertedOnly(!showConvertedOnly)}
+          className={`p-5 rounded-3xl border shadow-sm relative overflow-hidden group cursor-pointer transition-all ${
+            showConvertedOnly 
+              ? 'bg-purple-950 border-purple-800 text-white ring-2 ring-purple-500 shadow-xl scale-[1.02]' 
+              : 'bg-white border-gray-100 hover:border-purple-200 hover:shadow-md'
+          }`}
+          title="Clicca per mostrare l'elenco delle persone convertite da ONBEDAY ad ONBEVENTI"
+        >
+          <div className={`absolute top-0 right-0 w-12 h-12 rounded-bl-full transition-colors ${showConvertedOnly ? 'bg-purple-900' : 'bg-purple-50'}`}></div>
           <div className="relative">
-            <Sparkles className="w-4 h-4 text-purple-600 mb-2" />
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Conversione ONBEDAY</p>
-            <p className="text-2xl font-black text-purple-700 mt-0.5">{stats.onbeDayConversionRate.toFixed(1)}%</p>
-            <p className="text-[8px] text-gray-400 mt-1 font-medium italic">
+            <div className="flex items-center justify-between mb-1">
+              <Sparkles className={`w-4 h-4 ${showConvertedOnly ? 'text-purple-300' : 'text-purple-600'}`} />
+              <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full transition-colors ${
+                showConvertedOnly ? 'bg-purple-800 text-purple-200 border border-purple-700' : 'bg-purple-50 text-purple-700'
+              }`}>
+                {showConvertedOnly ? 'Filtro Attivo' : 'Mostra Lista'}
+              </span>
+            </div>
+            <p className={`text-[9px] font-black uppercase tracking-widest ${showConvertedOnly ? 'text-purple-200' : 'text-gray-400'}`}>Conversione ONBEDAY</p>
+            <p className={`text-2xl font-black mt-0.5 ${showConvertedOnly ? 'text-white' : 'text-purple-700'}`}>{stats.onbeDayConversionRate.toFixed(1)}%</p>
+            <p className={`text-[8px] mt-1 font-medium italic ${showConvertedOnly ? 'text-purple-300' : 'text-gray-400'}`}>
               {stats.onbeDayConvertedToEventsCount} su {stats.onbeDayNewMembersCount} nuovi in ONBEVENTI
             </p>
           </div>
@@ -375,6 +401,30 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
           </div>
         </div>
       </div>
+
+      {showConvertedOnly && (
+        <div className="bg-gradient-to-r from-purple-950 via-indigo-950 to-purple-900 text-white p-4.5 rounded-3xl border border-purple-800/80 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-purple-500/20 rounded-2xl text-purple-300 border border-purple-400/20 shrink-0">
+              <Sparkles className="w-5 h-5 text-purple-300" />
+            </div>
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-wider text-purple-200 flex items-center gap-2">
+                Elenco Membri Convertiti ({stats.onbeDayConvertedToEventsCount} persone)
+              </h4>
+              <p className="text-xs text-purple-300/80 mt-0.5">
+                Membri arrivati originariamente tramite un ONBEDAY che hanno successivamente partecipato anche agli ONBEVENTI.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowConvertedOnly(false)}
+            className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl border border-white/20 transition-all self-stretch sm:self-auto text-center shrink-0"
+          >
+            Ripristina (Mostra Tutti)
+          </button>
+        </div>
+      )}
 
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
@@ -464,6 +514,11 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
                             {item.isRegular && (
                               <span className="inline-flex items-center bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border border-green-200">
                                 <Star className="w-2.5 h-2.5 mr-1" /> FEDELE
+                              </span>
+                            )}
+                            {item.isConvertedToOnbeventi && (
+                              <span className="inline-flex items-center bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border border-purple-200">
+                                <Sparkles className="w-2.5 h-2.5 mr-1 text-purple-600" /> CONVERTITO
                               </span>
                             )}
                           </div>
@@ -569,6 +624,11 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
                       {item.isRegular && (
                         <span className="inline-flex items-center bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border border-green-200 leading-none">
                           FEDELE
+                        </span>
+                      )}
+                      {item.isConvertedToOnbeventi && (
+                        <span className="inline-flex items-center bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border border-purple-200 leading-none">
+                          CONVERTITO
                         </span>
                       )}
                       {item.eventsCount >= vipThreshold && (
