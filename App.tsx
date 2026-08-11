@@ -32,8 +32,36 @@ export default function App() {
   const [firebaseError, setFirebaseError] = useState(false);
 
   useEffect(() => {
+    // Parse URL query parameters on initial load
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const onbeDayId = params.get('onbeDayId');
+      const eventId = params.get('eventId');
+      if (onbeDayId) {
+        setViewState({ type: 'ONBEDAY_DETAILS', onbeDayId });
+      } else if (eventId) {
+        setViewState({ type: 'EVENT_DETAILS', eventId });
+      }
+    }
     refreshData();
   }, []);
+
+  // Synchronize browser URL query parameters with viewState
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (viewState.type === 'ONBEDAY_DETAILS') {
+      url.searchParams.set('onbeDayId', viewState.onbeDayId);
+      url.searchParams.delete('eventId');
+    } else if (viewState.type === 'EVENT_DETAILS') {
+      url.searchParams.set('eventId', viewState.eventId);
+      url.searchParams.delete('onbeDayId');
+    } else {
+      url.searchParams.delete('onbeDayId');
+      url.searchParams.delete('eventId');
+    }
+    window.history.replaceState({}, '', url.toString());
+  }, [viewState]);
 
   const refreshData = async () => {
     setIsLoading(true);
@@ -101,11 +129,61 @@ export default function App() {
     setOnbeDays(prev => prev.map(e => e.id === updatedOnbeDay.id ? updatedOnbeDay : e));
   };
 
+  const renderNotFound = (itemType: 'EVENTO' | 'ONBEDAY') => (
+    <div className="bg-white p-8 rounded-3xl shadow-sm text-center max-w-xl mx-auto my-10 border border-gray-100 space-y-6 animate-fade-in">
+      <div className="w-16 h-16 bg-amber-50 rounded-2xl border border-amber-100 flex items-center justify-center mx-auto text-amber-600">
+        <AlertTriangle className="w-8 h-8" />
+      </div>
+      <div>
+        <h3 className="text-2xl font-black text-gray-900">{itemType} Non Trovato</h3>
+        <p className="text-sm text-gray-500 mt-2 leading-relaxed">
+          Impossibile caricare questo {itemType.toLowerCase()} su questo dispositivo.
+        </p>
+      </div>
+
+      <div className="bg-indigo-50/80 border border-indigo-100 p-5 rounded-2xl text-left space-y-3">
+        <h4 className="text-xs font-black uppercase tracking-wider text-indigo-900 flex items-center gap-2">
+          <Smartphone className="w-4 h-4 text-pink-600 shrink-0" /> Perché succede sul cellulare?
+        </h4>
+        <ul className="text-xs text-indigo-800 space-y-2 list-disc list-inside leading-relaxed">
+          <li>
+            <b>Firebase non configurato su questo dispositivo:</b> La memoria locale del cellulare è separata dal computer. Se hai creato l'ONBEDAY dal PC, devi incollare la stessa configurazione Firebase in <b>Impostazioni</b> anche su questo cellulare per collegarlo al Cloud.
+          </li>
+          <li>
+            <b>Regole Firestore scadute:</b> Se avevi già attivato Firebase in <i>Modalità Test</i>, le regole temporanee potrebbero essere scadute dopo 30 giorni.
+          </li>
+        </ul>
+      </div>
+
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+        <button
+          onClick={() => setViewState({ type: 'SETTINGS' })}
+          className="w-full sm:w-auto px-5 py-3 bg-pink-600 hover:bg-pink-700 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
+        >
+          <SettingsIcon className="w-4 h-4" /> Configura Firebase
+        </button>
+        <button
+          onClick={refreshData}
+          className="w-full sm:w-auto px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2"
+        >
+          <RefreshCw className="w-4 h-4" /> Aggiorna Dati
+        </button>
+        <button
+          onClick={navigateToDashboard}
+          className="w-full sm:w-auto px-5 py-3 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-bold text-xs uppercase tracking-wider rounded-xl transition-all"
+        >
+          Dashboard
+        </button>
+      </div>
+    </div>
+  );
+
   const renderContent = () => {
-    if (isLoading && events.length === 0) {
+    if (isLoading) {
       return (
-        <div className="flex h-[50vh] items-center justify-center">
+        <div className="flex h-[50vh] flex-col items-center justify-center gap-3">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600"></div>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Caricamento in corso...</p>
         </div>
       );
     }
@@ -165,7 +243,7 @@ export default function App() {
 
       case 'EDIT_EVENT':
         const eventToEdit = events.find(e => e.id === viewState.eventId);
-        if (!eventToEdit) return <div>Evento non trovato</div>;
+        if (!eventToEdit) return renderNotFound('EVENTO');
         return (
           <EventForm
             initialData={eventToEdit}
@@ -176,7 +254,7 @@ export default function App() {
 
       case 'EVENT_DETAILS':
         const event = events.find(e => e.id === viewState.eventId);
-        if (!event) return <div>Evento non trovato</div>;
+        if (!event) return renderNotFound('EVENTO');
         return (
           <EventDetails 
             event={event} 
@@ -215,7 +293,7 @@ export default function App() {
 
       case 'EDIT_ONBEDAY':
         const onbeDayToEdit = onbeDays.find(e => e.id === viewState.onbeDayId);
-        if (!onbeDayToEdit) return <div>ONBEDAY non trovato</div>;
+        if (!onbeDayToEdit) return renderNotFound('ONBEDAY');
         return (
           <OnbeDayForm
             initialData={onbeDayToEdit}
@@ -226,7 +304,7 @@ export default function App() {
 
       case 'ONBEDAY_DETAILS':
         const onbeDay = onbeDays.find(e => e.id === viewState.onbeDayId);
-        if (!onbeDay) return <div>ONBEDAY non trovato</div>;
+        if (!onbeDay) return renderNotFound('ONBEDAY');
         return (
           <OnbeDayDetails 
             onbeDay={onbeDay} 
