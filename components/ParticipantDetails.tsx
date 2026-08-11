@@ -25,6 +25,8 @@ interface ParticipantSummary {
   presenceCount: number;
   history: { event: AppEvent | OnbeDay; attendeeData: Attendee; isOnbeDay?: boolean }[];
   lastSeen: string | null;
+  isAcquiredViaOnbeDay?: boolean;
+  isConvertedToOnbeventi?: boolean;
 }
 
 export const ParticipantDetails: React.FC<ParticipantDetailsProps> = ({ participantKey, events, onbeDays, onBack, onUpdate, onEventClick, onOnbeDayClick }) => {
@@ -67,10 +69,15 @@ export const ParticipantDetails: React.FC<ParticipantDetailsProps> = ({ particip
 
     history.sort((a, b) => new Date(b.event.date).getTime() - new Date(a.event.date).getTime());
     
-    const lastSeenPresence = history.find(h => h.attendeeData.isPresent !== false);
+    const presentHistory = history.filter(h => h.attendeeData.isPresent !== false);
+    const lastSeenPresence = presentHistory.length > 0 ? presentHistory[0] : null;
+    const earliestPresence = presentHistory.length > 0 ? presentHistory[presentHistory.length - 1] : null;
+    const isAcquiredViaOnbeDay = earliestPresence ? earliestPresence.isOnbeDay === true : false;
+    const isConvertedToOnbeventi = isAcquiredViaOnbeDay && presentHistory.some(h => !h.isOnbeDay);
+
     const lastSeen = lastSeenPresence ? lastSeenPresence.event.date : null;
 
-    return { baseAttendee, totalPaid, presenceCount, history, lastSeen };
+    return { baseAttendee, totalPaid, presenceCount, history, lastSeen, isAcquiredViaOnbeDay, isConvertedToOnbeventi };
   }, [events, onbeDays, participantKey]);
 
   useEffect(() => {
@@ -239,6 +246,16 @@ END:VCARD`;
                   {formData.gender && (
                     <span className={`px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest ${formData.gender === 'M' ? 'bg-blue-100 text-blue-600' : formData.gender === 'F' ? 'bg-pink-100 text-pink-600' : 'bg-gray-100 text-gray-500'}`}>
                       {formData.gender === 'M' ? 'Maschio' : formData.gender === 'F' ? 'Femmina' : 'Altro'}
+                    </span>
+                  )}
+                  {data.isAcquiredViaOnbeDay && (
+                    <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center shadow-sm">
+                      🌱 Acquisito via ONBEDAY
+                    </span>
+                  )}
+                  {data.isConvertedToOnbeventi && (
+                    <span className="bg-pink-100 text-pink-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center shadow-sm">
+                      ✨ Convertito in ONBEVENTI
                     </span>
                   )}
                   {isVip ? (

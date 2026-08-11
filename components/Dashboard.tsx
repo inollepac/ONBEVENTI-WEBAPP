@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { AppEvent, ExtraExpense, PaymentStatus, OnbeDay, ShopProduct, ShopSale } from '../types';
-import { Calendar, DollarSign, Users, Plus, ArrowRight, MapPin, Clock, Ticket, TrendingDown, Wallet, History, Receipt, Trash2, Save, Filter, ChevronDown, BarChart3, Lightbulb, LayoutGrid } from 'lucide-react';
+import { Calendar, DollarSign, Users, Plus, ArrowRight, MapPin, Clock, Ticket, TrendingDown, Wallet, History, Receipt, Trash2, Save, Filter, ChevronDown, BarChart3, Lightbulb, LayoutGrid, Sparkles } from 'lucide-react';
 import { Button } from './Button';
 import { generateId, saveExtraExpense, deleteExtraExpense } from '../services/storageService';
 
@@ -130,6 +130,39 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, onbeDays, extraExp
     const totalParticipations = targetEvents.reduce((acc, curr) => 
       acc + (curr.attendees ? curr.attendees.filter(a => a.isPresent !== false).length : 0), 0);
 
+    // Calcolo Conversione ONBEDAY -> ONBEVENTI
+    const journeyMap = new Map<string, { firstType: 'ONBEVENTO' | 'ONBEDAY'; firstDate: number; hasEvents: boolean }>();
+    const processJourney = (item: AppEvent | OnbeDay, type: 'ONBEVENTO' | 'ONBEDAY') => {
+      const itemDate = new Date(item.date).getTime();
+      (item.attendees || []).forEach(a => {
+        if (a.isPresent === false) return;
+        const key = (a.email || a.phone || a.name).toLowerCase().trim();
+        if (!key) return;
+        if (journeyMap.has(key)) {
+          const entry = journeyMap.get(key)!;
+          if (type === 'ONBEVENTO') entry.hasEvents = true;
+          if (itemDate < entry.firstDate) {
+            entry.firstDate = itemDate;
+            entry.firstType = type;
+          }
+        } else {
+          journeyMap.set(key, { firstType: type, firstDate: itemDate, hasEvents: type === 'ONBEVENTO' });
+        }
+      });
+    };
+    filteredOnbeDays.forEach(d => processJourney(d, 'ONBEDAY'));
+    filteredEvents.forEach(e => processJourney(e, 'ONBEVENTO'));
+
+    let onbeDayNewCount = 0;
+    let onbeDayConvertedCount = 0;
+    journeyMap.forEach(j => {
+      if (j.firstType === 'ONBEDAY') {
+        onbeDayNewCount += 1;
+        if (j.hasEvents) onbeDayConvertedCount += 1;
+      }
+    });
+    const onbeDayConversionRate = onbeDayNewCount > 0 ? (onbeDayConvertedCount / onbeDayNewCount) * 100 : 0;
+
     return { 
       upcomingEvents, 
       pastEvents,
@@ -142,7 +175,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, onbeDays, extraExp
       totalEventsCount,
       totalParticipations,
       shopRevenue,
-      shopExpense
+      shopExpense,
+      onbeDayNewCount,
+      onbeDayConvertedCount,
+      onbeDayConversionRate
     };
   }, [events, onbeDays, extraExpenses, shopProducts, shopSales, selectedYear, statsCategory]);
 
@@ -367,6 +403,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, onbeDays, extraExp
             <p className="text-xs text-indigo-100 font-bold uppercase tracking-wider opacity-70">Profitto {statsCategory !== 'totale' ? statsCategory : (selectedYear === 'all' ? 'Globale' : selectedYear)}</p>
             <p className="text-3xl font-black text-white mt-1">€ {stats.totalProfit.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
           </div>
+        </div>
+      </div>
+
+      {/* ONBEDAY Conversion Highlight Banner */}
+      <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-indigo-950 p-5 rounded-2xl border border-purple-800/60 shadow-lg text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-purple-500/20 text-purple-300 rounded-xl border border-purple-400/20">
+            <Sparkles className="w-6 h-6 text-purple-300" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black text-purple-300 uppercase tracking-widest">Conversione Nuovi da ONBEDAY → ONBEVENTI</span>
+              <span className="bg-purple-500/30 text-purple-200 text-[10px] font-bold px-2 py-0.5 rounded-full border border-purple-400/30">
+                {selectedYear === 'all' ? 'Tutti gli Anni' : selectedYear}
+              </span>
+            </div>
+            <p className="text-xs text-gray-300 font-medium mt-0.5">
+              Percentuale di nuovi membri il cui primo evento è stato un ONBEDAY e che poi hanno iniziato a frequentare anche gli ONBEVENTI.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-baseline gap-2 bg-white/10 px-5 py-3 rounded-xl border border-white/10 self-stretch sm:self-auto justify-center">
+          <span className="text-3xl font-black text-purple-200">{stats.onbeDayConversionRate.toFixed(1)}%</span>
+          <span className="text-xs text-purple-300 font-bold italic">({stats.onbeDayConvertedCount} su {stats.onbeDayNewCount} nuovi)</span>
         </div>
       </div>
 

@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { AppEvent, Attendee, OnbeDay, PaymentStatus } from '../types';
-import { Users, Search, Mail, Phone, ArrowLeft, SortAsc, SortDesc, Trophy, Star, Repeat, Target, LayoutGrid, Ticket, Calendar, Filter, ChevronDown, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { Users, Search, Mail, Phone, ArrowLeft, SortAsc, SortDesc, Trophy, Star, Repeat, Target, LayoutGrid, Ticket, Calendar, Filter, ChevronDown, ShieldAlert, ShieldCheck, Sparkles } from 'lucide-react';
 
 interface ParticipantsListProps {
   events: AppEvent[];
@@ -138,6 +138,61 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
       ? (returningHistoricalCount / historicalMembers.length) * 100 
       : 0;
 
+    // --- Calcolo Conversione ONBEDAY -> ONBEVENTI ---
+    const allYearEvents = filterByYear(events || []);
+    const allYearOnbeDays = filterByYear(onbeDays || []);
+
+    const memberJourneyMap = new Map<string, {
+      firstType: 'ONBEVENTO' | 'ONBEDAY';
+      firstDate: number;
+      hasAttendedOnbeventi: boolean;
+    }>();
+
+    const recordMemberJourney = (item: AppEvent | OnbeDay, type: 'ONBEVENTO' | 'ONBEDAY') => {
+      const itemDate = new Date(item.date).getTime();
+      (item.attendees || []).forEach(a => {
+        if (a.isPresent === false) return; // Conta solo presenze effettive
+        const key = (a.email || a.phone || a.name).toLowerCase().trim();
+        if (!key) return;
+
+        if (memberJourneyMap.has(key)) {
+          const entry = memberJourneyMap.get(key)!;
+          if (type === 'ONBEVENTO') {
+            entry.hasAttendedOnbeventi = true;
+          }
+          if (itemDate < entry.firstDate) {
+            entry.firstDate = itemDate;
+            entry.firstType = type;
+          }
+        } else {
+          memberJourneyMap.set(key, {
+            firstType: type,
+            firstDate: itemDate,
+            hasAttendedOnbeventi: type === 'ONBEVENTO'
+          });
+        }
+      });
+    };
+
+    allYearOnbeDays.forEach(od => recordMemberJourney(od, 'ONBEDAY'));
+    allYearEvents.forEach(ev => recordMemberJourney(ev, 'ONBEVENTO'));
+
+    let onbeDayNewMembersCount = 0;
+    let onbeDayConvertedToEventsCount = 0;
+
+    memberJourneyMap.forEach(journey => {
+      if (journey.firstType === 'ONBEDAY') {
+        onbeDayNewMembersCount += 1;
+        if (journey.hasAttendedOnbeventi) {
+          onbeDayConvertedToEventsCount += 1;
+        }
+      }
+    });
+
+    const onbeDayConversionRate = onbeDayNewMembersCount > 0 
+      ? (onbeDayConvertedToEventsCount / onbeDayNewMembersCount) * 100 
+      : 0;
+
     const stats = {
       totalMembers: totalMembersCount,
       activeMembersCount,
@@ -147,7 +202,10 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
       fedelePercentage: activeMembersCount > 0 ? (fedeleCount / activeMembersCount) * 100 : 0,
       vipPercentage: activeMembersCount > 0 ? (vipCount / activeMembersCount) * 100 : 0,
       realReturnRate,
-      totalMissingWaivers
+      totalMissingWaivers,
+      onbeDayNewMembersCount,
+      onbeDayConvertedToEventsCount,
+      onbeDayConversionRate
     };
     
     let filteredList = [...fullList];
@@ -239,7 +297,7 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
         <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
           <div className="absolute top-0 right-0 w-12 h-12 bg-indigo-50 rounded-bl-full"></div>
           <div className="relative">
@@ -271,6 +329,18 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
             <p className="text-2xl font-black text-white mt-0.5">{stats.realReturnRate.toFixed(1)}%</p>
             <p className="text-[8px] text-indigo-400 mt-1 font-bold leading-tight uppercase tracking-tighter">
               Calcolato su storici presenti
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-12 h-12 bg-purple-50 rounded-bl-full"></div>
+          <div className="relative">
+            <Sparkles className="w-4 h-4 text-purple-600 mb-2" />
+            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Conversione ONBEDAY</p>
+            <p className="text-2xl font-black text-purple-700 mt-0.5">{stats.onbeDayConversionRate.toFixed(1)}%</p>
+            <p className="text-[8px] text-gray-400 mt-1 font-medium italic">
+              {stats.onbeDayConvertedToEventsCount} su {stats.onbeDayNewMembersCount} nuovi in ONBEVENTI
             </p>
           </div>
         </div>
