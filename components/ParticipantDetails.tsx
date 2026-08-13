@@ -1,11 +1,12 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { AppEvent, Attendee, OnbeDay, PaymentStatus } from '../types';
+import { AppEvent, Attendee, OnbeDay, PaymentStatus, ShopSale } from '../types';
 import { Button } from './Button';
 import { 
   ArrowLeft, Edit2, Save, X, Mail, Phone, Calendar, 
   MessageCircle, ExternalLink, Trophy, History, Wallet, 
-  CheckCircle, Clock, Tag, Briefcase, Download, User, UserX, ShieldCheck, ShieldAlert
+  CheckCircle, Clock, Tag, Briefcase, Download, User, UserX, ShieldCheck, ShieldAlert,
+  ShoppingBag, Receipt, ChevronRight, Package, Gift, Ticket
 } from 'lucide-react';
 import { updateParticipantGlobally } from '../services/storageService';
 
@@ -13,6 +14,7 @@ interface ParticipantDetailsProps {
   participantKey: string;
   events: AppEvent[];
   onbeDays: OnbeDay[];
+  shopSales?: ShopSale[];
   onBack: () => void;
   onUpdate: () => void;
   onEventClick: (eventId: string) => void;
@@ -29,10 +31,23 @@ interface ParticipantSummary {
   isConvertedToOnbeventi?: boolean;
 }
 
-export const ParticipantDetails: React.FC<ParticipantDetailsProps> = ({ participantKey, events, onbeDays, onBack, onUpdate, onEventClick, onOnbeDayClick }) => {
+export const ParticipantDetails: React.FC<ParticipantDetailsProps> = ({ 
+  participantKey, 
+  events, 
+  onbeDays, 
+  shopSales = [], 
+  onBack, 
+  onUpdate, 
+  onEventClick, 
+  onOnbeDayClick 
+}) => {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', gender: '' });
+
+  // Modal State for Expense Breakdown
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+  const [activeExpenseTab, setActiveExpenseTab] = useState<'all' | 'shop' | 'events'>('all');
 
   const vipThreshold = Number(localStorage.getItem('onbe_vip_threshold') || '5');
   const regularThreshold = Number(localStorage.getItem('onbe_regular_threshold') || '3');
@@ -79,6 +94,41 @@ export const ParticipantDetails: React.FC<ParticipantDetailsProps> = ({ particip
 
     return { baseAttendee, totalPaid, presenceCount, history, lastSeen, isAcquiredViaOnbeDay, isConvertedToOnbeventi };
   }, [events, onbeDays, participantKey]);
+
+  // Calcolo Acquisti ONBEShop per questo membro
+  const memberShopSales = useMemo(() => {
+    if (!shopSales || !data.baseAttendee) return [];
+    const name = (data.baseAttendee.name || '').toLowerCase().trim();
+    const email = (data.baseAttendee.email || '').toLowerCase().trim();
+    const phone = (data.baseAttendee.phone || '').toLowerCase().trim();
+    const key = participantKey.toLowerCase().trim();
+
+    return shopSales.filter(s => {
+      if (!s.buyerName) return false;
+      const buyer = s.buyerName.toLowerCase().trim();
+      return buyer === name || buyer === key || (email && buyer === email) || (phone && buyer === phone);
+    });
+  }, [shopSales, data.baseAttendee, participantKey]);
+
+  const totalEventsPaid = useMemo(() => {
+    return data.history
+      .filter(h => !h.isOnbeDay && h.attendeeData.status === PaymentStatus.PAID)
+      .reduce((acc, h) => acc + (h.attendeeData.paidAmount !== undefined ? h.attendeeData.paidAmount : h.event.cost), 0);
+  }, [data.history]);
+
+  const totalOnbeDaysPaid = useMemo(() => {
+    return data.history
+      .filter(h => h.isOnbeDay && h.attendeeData.status === PaymentStatus.PAID)
+      .reduce((acc, h) => acc + (h.attendeeData.paidAmount !== undefined ? h.attendeeData.paidAmount : h.event.cost), 0);
+  }, [data.history]);
+
+  const totalShopPaid = useMemo(() => {
+    return memberShopSales.reduce((acc, sale) => {
+      return acc + (sale.isGift ? 0 : ((sale.soldPrice || 0) * (sale.quantity || 1)));
+    }, 0);
+  }, [memberShopSales]);
+
+  const grandTotalPaid = totalEventsPaid + totalOnbeDaysPaid + totalShopPaid;
 
   useEffect(() => {
     if (data.baseAttendee) {
@@ -293,16 +343,33 @@ END:VCARD`;
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-8 h-8 bg-pink-50 rounded-bl-full group-hover:w-12 group-hover:h-12 transition-all"></div>
-              <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Totale Versato</p>
-              <p className="text-2xl font-black text-pink-600">€{data.totalPaid.toFixed(2)}</p>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            <div 
+              onClick={() => setIsExpenseModalOpen(true)}
+              className="bg-white p-4 sm:p-5 rounded-3xl border border-pink-100/80 hover:border-pink-300 shadow-sm hover:shadow-md relative overflow-hidden group cursor-pointer transition-all active:scale-[0.98]"
+              title="Clicca per aprire il resoconto spese dettagliato e gli acquisti ONBEShop"
+            >
+              <div className="absolute top-0 right-0 w-8 h-8 sm:w-10 sm:h-10 bg-pink-50 rounded-bl-full group-hover:w-12 group-hover:h-12 transition-all flex items-start justify-end p-1.5">
+                <Receipt className="w-3.5 h-3.5 text-pink-500" />
+              </div>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Totale Versato</p>
+                <span className="text-[8px] font-black text-pink-600 bg-pink-50 px-1.5 py-0.5 rounded-full border border-pink-100 flex items-center gap-0.5">
+                  Dettaglio <ChevronRight className="w-2.5 h-2.5" />
+                </span>
+              </div>
+              <p className="text-xl sm:text-2xl font-black text-pink-600">€{grandTotalPaid.toFixed(2)}</p>
+              {totalShopPaid > 0 && (
+                <p className="text-[9px] font-bold text-purple-600 mt-1 flex items-center gap-1">
+                  <ShoppingBag className="w-3 h-3" /> Inclusi €{totalShopPaid.toFixed(2)} Shop
+                </p>
+              )}
             </div>
-            <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
+
+            <div className="bg-white p-4 sm:p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-8 h-8 bg-indigo-50 rounded-bl-full group-hover:w-12 group-hover:h-12 transition-all"></div>
               <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Presenze</p>
-              <p className="text-2xl font-black text-indigo-600">{data.presenceCount}</p>
+              <p className="text-xl sm:text-2xl font-black text-indigo-600">{data.presenceCount}</p>
             </div>
           </div>
           
@@ -415,19 +482,241 @@ END:VCARD`;
               </table>
             </div>
             
-            <div className="p-6 bg-gray-50 border-t border-gray-100 mt-auto flex justify-between items-center">
+            <div className="p-4 sm:p-6 bg-gray-50 border-t border-gray-100 mt-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <div className="flex items-center gap-2">
-                 <Tag className="w-4 h-4 text-pink-500" />
-                 <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Resoconto Personale</span>
+                 <Tag className="w-4 h-4 text-pink-500 shrink-0" />
+                 <div>
+                   <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block">Resoconto Finanziario Personale</span>
+                   <span className="text-[10px] text-gray-400 font-medium">Include Partecipazioni ed Eventuali Acquisti ONBEShop</span>
+                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Contributo Reale</p>
-                <p className="text-xl font-black text-gray-900">€ {data.totalPaid.toFixed(2)}</p>
+              <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                <div className="text-right">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Contributo Complessivo</p>
+                  <p className="text-lg sm:text-xl font-black text-gray-900">€ {grandTotalPaid.toFixed(2)}</p>
+                </div>
+                <button
+                  onClick={() => setIsExpenseModalOpen(true)}
+                  className="px-3.5 py-2 bg-indigo-950 hover:bg-indigo-900 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 shrink-0"
+                >
+                  <Receipt className="w-3.5 h-3.5 text-pink-400" /> Vedi Dettaglio
+                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Modal Resoconto Spese e Acquisti */}
+      {isExpenseModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-fade-in">
+          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col max-h-[90vh] my-auto">
+            
+            {/* Modal Header */}
+            <div className="p-4 sm:p-6 bg-indigo-950 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-pink-500/20 rounded-2xl border border-pink-400/30 text-pink-300">
+                  <Receipt className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black leading-tight">Resoconto Spese & Acquisti</h3>
+                  <p className="text-xs text-indigo-300 font-medium truncate max-w-[200px] sm:max-w-none">
+                    Membro: <span className="text-white font-bold">{formData.name}</span>
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsExpenseModalOpen(false)}
+                className="p-2 hover:bg-white/10 rounded-xl transition-colors text-indigo-200 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* KPI Summary Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3.5 sm:p-5 bg-slate-50 border-b border-gray-100">
+              <div className="bg-gradient-to-br from-pink-600 to-purple-700 text-white p-3 rounded-2xl shadow-sm">
+                <p className="text-[9px] font-black uppercase text-pink-200 tracking-wider">Totale Versato</p>
+                <p className="text-lg sm:text-xl font-black mt-0.5">€{grandTotalPaid.toFixed(2)}</p>
+              </div>
+              <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
+                <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">ONBEVENTI</p>
+                <p className="text-base sm:text-lg font-black text-pink-600 mt-0.5">€{totalEventsPaid.toFixed(2)}</p>
+              </div>
+              <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
+                <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">ONBEDAY</p>
+                <p className="text-base sm:text-lg font-black text-indigo-600 mt-0.5">€{totalOnbeDaysPaid.toFixed(2)}</p>
+              </div>
+              <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
+                <p className="text-[9px] font-black text-gray-400 uppercase tracking-wider">ONBEShop</p>
+                <p className="text-base sm:text-lg font-black text-purple-600 mt-0.5">€{totalShopPaid.toFixed(2)}</p>
+              </div>
+            </div>
+
+            {/* Tab Navigation */}
+            <div className="px-4 pt-3 border-b border-gray-100 bg-white flex gap-2 overflow-x-auto">
+              <button
+                onClick={() => setActiveExpenseTab('all')}
+                className={`px-3 py-2 text-xs font-black uppercase tracking-wider border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                  activeExpenseTab === 'all' 
+                    ? 'border-pink-600 text-pink-600' 
+                    : 'border-transparent text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                Tutti ({data.history.length + memberShopSales.length})
+              </button>
+              <button
+                onClick={() => setActiveExpenseTab('shop')}
+                className={`px-3 py-2 text-xs font-black uppercase tracking-wider border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                  activeExpenseTab === 'shop' 
+                    ? 'border-purple-600 text-purple-600' 
+                    : 'border-transparent text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                <ShoppingBag className="w-3.5 h-3.5" /> ONBEShop ({memberShopSales.length})
+              </button>
+              <button
+                onClick={() => setActiveExpenseTab('events')}
+                className={`px-3 py-2 text-xs font-black uppercase tracking-wider border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap ${
+                  activeExpenseTab === 'events' 
+                    ? 'border-indigo-600 text-indigo-600' 
+                    : 'border-transparent text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                <Ticket className="w-3.5 h-3.5" /> Eventi & ONBEDAY ({data.history.length})
+              </button>
+            </div>
+
+            {/* Modal Scrollable Body */}
+            <div className="p-4 sm:p-6 overflow-y-auto space-y-6 flex-1">
+              
+              {/* ONBESHOP PURCHASES SECTION */}
+              {(activeExpenseTab === 'all' || activeExpenseTab === 'shop') && (
+                <div className="space-y-3">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-purple-900 flex items-center gap-2 border-b border-purple-100 pb-2">
+                    <ShoppingBag className="w-4 h-4 text-purple-600" />
+                    Acquisti dallo Shop ({memberShopSales.length})
+                  </h4>
+
+                  {memberShopSales.length === 0 ? (
+                    <div className="bg-purple-50/50 p-4 rounded-2xl text-center border border-purple-100/60">
+                      <p className="text-xs text-purple-600 font-medium">Nessun acquisto dallo Shop registrato a nome di questo membro.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {memberShopSales.map((sale) => {
+                        const saleTotal = sale.isGift ? 0 : (sale.soldPrice * sale.quantity);
+                        return (
+                          <div 
+                            key={sale.id}
+                            className="bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between gap-3 hover:border-purple-200 transition-all"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className={`p-2 rounded-xl shrink-0 ${sale.isGift ? 'bg-amber-100 text-amber-600' : 'bg-purple-100 text-purple-600'}`}>
+                                {sale.isGift ? <Gift className="w-4 h-4" /> : <Package className="w-4 h-4" />}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-bold text-gray-900 truncate">{sale.productName}</p>
+                                <div className="flex items-center gap-2 text-[10px] text-gray-400 mt-0.5">
+                                  <span>Quantità: <strong className="text-gray-700">{sale.quantity}</strong></span>
+                                  <span>•</span>
+                                  <span>{new Date(sale.date).toLocaleDateString('it-IT')}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="text-right shrink-0">
+                              {sale.isGift ? (
+                                <span className="inline-flex items-center bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-[9px] font-black uppercase">
+                                  🎁 Omaggio
+                                </span>
+                              ) : (
+                                <div>
+                                  <p className="text-sm font-black text-purple-700">€ {saleTotal.toFixed(2)}</p>
+                                  <p className="text-[9px] text-gray-400">€{sale.soldPrice.toFixed(2)} cad.</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* EVENTS & ONBEDAY SECTION */}
+              {(activeExpenseTab === 'all' || activeExpenseTab === 'events') && (
+                <div className="space-y-3">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-indigo-900 flex items-center gap-2 border-b border-indigo-100 pb-2">
+                    <Ticket className="w-4 h-4 text-indigo-600" />
+                    Partecipazioni Eventi & ONBEDAY ({data.history.length})
+                  </h4>
+
+                  {data.history.length === 0 ? (
+                    <div className="bg-indigo-50/50 p-4 rounded-2xl text-center border border-indigo-100/60">
+                      <p className="text-xs text-indigo-600 font-medium">Nessun evento o ONBEDAY a cui ha partecipato.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {data.history.map(({ event, attendeeData, isOnbeDay }) => {
+                        const isPaid = attendeeData.status === PaymentStatus.PAID;
+                        const amount = attendeeData.paidAmount !== undefined ? attendeeData.paidAmount : event.cost;
+                        return (
+                          <div 
+                            key={event.id}
+                            onClick={() => {
+                              setIsExpenseModalOpen(false);
+                              isOnbeDay ? onOnbeDayClick(event.id) : onEventClick(event.id);
+                            }}
+                            className="bg-white p-3.5 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between gap-3 hover:border-pink-200 transition-all cursor-pointer group"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className={`p-2 rounded-xl shrink-0 ${isOnbeDay ? 'bg-indigo-100 text-indigo-600' : 'bg-pink-100 text-pink-600'}`}>
+                                <Calendar className="w-4 h-4" />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-bold text-gray-900 group-hover:text-pink-600 transition-colors truncate">{event.title}</p>
+                                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider shrink-0 ${isOnbeDay ? 'bg-indigo-100 text-indigo-700' : 'bg-pink-100 text-pink-700'}`}>
+                                    {isOnbeDay ? 'ONBEDAY' : 'EVENTO'}
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-gray-400 mt-0.5">{new Date(event.date).toLocaleDateString('it-IT')} • {event.location}</p>
+                              </div>
+                            </div>
+
+                            <div className="text-right shrink-0">
+                              <p className="text-sm font-black text-gray-900">€ {amount.toFixed(2)}</p>
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${
+                                isPaid ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                              }`}>
+                                {isPaid ? 'Pagato' : 'Sospeso'}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+              <div className="text-left">
+                <p className="text-[10px] font-black text-gray-400 uppercase">Totale Globale Versato</p>
+                <p className="text-lg font-black text-pink-600">€ {grandTotalPaid.toFixed(2)}</p>
+              </div>
+              <Button onClick={() => setIsExpenseModalOpen(false)}>
+                Chiudi Resoconto
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

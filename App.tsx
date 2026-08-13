@@ -231,6 +231,7 @@ export default function App() {
             participantKey={viewState.participantKey}
             events={events}
             onbeDays={onbeDays}
+            shopSales={shopSales}
             onBack={() => setViewState({ type: 'PARTICIPANTS' })}
             onUpdate={refreshData}
             onEventClick={(eventId) => setViewState({ type: 'EVENT_DETAILS', eventId })}
