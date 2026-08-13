@@ -272,65 +272,65 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, onbeDays, extraExp
       </div>
 
       {/* Stats Category Toggle */}
-      <div className="flex items-center gap-2 p-1 bg-white rounded-2xl border border-gray-100 w-fit shadow-sm">
+      <div className="flex items-center gap-1.5 p-1 bg-white rounded-2xl border border-gray-100 w-full sm:w-fit shadow-sm overflow-x-auto">
         <button 
           onClick={() => setStatsCategory('totale')}
-          className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${statsCategory === 'totale' ? 'bg-indigo-950 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
+          className={`flex-1 sm:flex-none px-3 sm:px-6 py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${statsCategory === 'totale' ? 'bg-indigo-950 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
         >
-          <LayoutGrid className="w-4 h-4" />
+          <LayoutGrid className="w-3.5 h-3.5" />
           Totale
         </button>
         <button 
           onClick={() => setStatsCategory('onbeventi')}
-          className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${statsCategory === 'onbeventi' ? 'bg-pink-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
+          className={`flex-1 sm:flex-none px-3 sm:px-6 py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${statsCategory === 'onbeventi' ? 'bg-pink-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
         >
-          <Ticket className="w-4 h-4" />
+          <Ticket className="w-3.5 h-3.5" />
           ONBEVENTI
         </button>
         <button 
           onClick={() => setStatsCategory('onbeday')}
-          className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${statsCategory === 'onbeday' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
+          className={`flex-1 sm:flex-none px-3 sm:px-6 py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${statsCategory === 'onbeday' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
         >
-          <Calendar className="w-4 h-4" />
+          <Calendar className="w-3.5 h-3.5" />
           ONBEDAY
         </button>
       </div>
 
       {/* Global Stats Grid - Ordered: Activity, Revenue, Expenses, Profit */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         {/* 1. Volume Attività */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
-           <div className={`absolute top-0 right-0 w-20 h-20 rounded-bl-full -mr-4 -mt-4 transition-colors ${statsCategory === 'totale' ? 'bg-indigo-50' : statsCategory === 'onbeventi' ? 'bg-pink-50' : 'bg-indigo-50'}`}></div>
+        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
+           <div className={`absolute top-0 right-0 w-16 sm:w-20 h-16 sm:h-20 rounded-bl-full -mr-4 -mt-4 transition-colors ${statsCategory === 'totale' ? 'bg-indigo-50' : statsCategory === 'onbeventi' ? 'bg-pink-50' : 'bg-indigo-50'}`}></div>
            <div className="relative">
-            <div className={`p-3 w-fit rounded-xl mb-4 shadow-sm transition-colors ${statsCategory === 'totale' ? 'bg-indigo-100 text-indigo-600' : statsCategory === 'onbeventi' ? 'bg-pink-100 text-pink-600' : 'bg-indigo-100 text-indigo-600'}`}>
-              <BarChart3 className="w-6 h-6" />
+            <div className={`p-2.5 sm:p-3 w-fit rounded-xl mb-3 sm:mb-4 shadow-sm transition-colors ${statsCategory === 'totale' ? 'bg-indigo-100 text-indigo-600' : statsCategory === 'onbeventi' ? 'bg-pink-100 text-pink-600' : 'bg-indigo-100 text-indigo-600'}`}>
+              <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Volume {statsCategory === 'totale' ? 'Attività' : statsCategory}</p>
+            <p className="text-[10px] sm:text-xs text-gray-400 font-bold uppercase tracking-wider">Volume {statsCategory === 'totale' ? 'Attività' : statsCategory}</p>
             <div className="mt-1">
               <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-gray-900">{stats.totalEventsCount}</span>
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Eventi</span>
+                <span className="text-xl sm:text-2xl font-black text-gray-900">{stats.totalEventsCount}</span>
+                <span className="text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-tight">Eventi</span>
               </div>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-gray-900">{stats.totalParticipations}</span>
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Presenze</span>
+                <span className="text-xl sm:text-2xl font-black text-gray-900">{stats.totalParticipations}</span>
+                <span className="text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-tight">Presenze</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* 2. Incasso Globale */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden flex flex-col justify-between">
-           <div className="absolute top-0 right-0 w-20 h-20 bg-green-50 rounded-bl-full -mr-4 -mt-4"></div>
+        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden flex flex-col justify-between">
+           <div className="absolute top-0 right-0 w-16 sm:w-20 h-16 sm:h-20 bg-green-50 rounded-bl-full -mr-4 -mt-4"></div>
            <div className="relative">
-            <div className="p-3 bg-green-100 w-fit rounded-xl text-green-600 mb-4 shadow-sm">
-              <DollarSign className="w-6 h-6" />
+            <div className="p-2.5 sm:p-3 bg-green-100 w-fit rounded-xl text-green-600 mb-3 sm:mb-4 shadow-sm">
+              <DollarSign className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Incasso {statsCategory !== 'totale' ? statsCategory : (selectedYear === 'all' ? 'Globale' : selectedYear)}</p>
-            <p className="text-3xl font-black text-gray-900 mt-1">€ {stats.totalRevenue.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
+            <p className="text-[10px] sm:text-xs text-gray-400 font-bold uppercase tracking-wider">Incasso {statsCategory !== 'totale' ? statsCategory : (selectedYear === 'all' ? 'Globale' : selectedYear)}</p>
+            <p className="text-xl sm:text-3xl font-black text-gray-900 mt-1">€ {stats.totalRevenue.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
             
             {statsCategory === 'totale' && stats.shopRevenue > 0 && (
-              <div className="mt-3 text-[10px] text-green-700 bg-green-50 border border-green-100/55 rounded-lg py-1 px-2 font-bold flex items-center justify-between">
+              <div className="mt-2 text-[9px] sm:text-[10px] text-green-700 bg-green-50 border border-green-100/55 rounded-lg py-1 px-2 font-bold flex items-center justify-between">
                 <span>Di cui Shop:</span>
                 <span>+ € {stats.shopRevenue.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
@@ -339,14 +339,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ events, onbeDays, extraExp
         </div>
 
         {/* 3. Uscite Totali */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden flex flex-col justify-between">
-           <div className="absolute top-0 right-0 w-20 h-20 bg-red-50 rounded-bl-full -mr-4 -mt-4"></div>
+        <div className="bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden flex flex-col justify-between">
+           <div className="absolute top-0 right-0 w-16 sm:w-20 h-16 sm:h-20 bg-red-50 rounded-bl-full -mr-4 -mt-4"></div>
            <div className="relative">
-            <div className="p-3 bg-red-100 w-fit rounded-xl text-red-600 mb-4 shadow-sm">
-              <TrendingDown className="w-6 h-6" />
+            <div className="p-2.5 sm:p-3 bg-red-100 w-fit rounded-xl text-red-600 mb-3 sm:mb-4 shadow-sm">
+              <TrendingDown className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
-            <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Uscite {statsCategory !== 'totale' ? statsCategory : (selectedYear === 'all' ? 'Totali' : selectedYear)}</p>
-            <p className="text-3xl font-black text-gray-900 mt-1">€ {stats.totalExpenses.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
+            <p className="text-[10px] sm:text-xs text-gray-400 font-bold uppercase tracking-wider">Uscite {statsCategory !== 'totale' ? statsCategory : (selectedYear === 'all' ? 'Totali' : selectedYear)}</p>
+            <p className="text-xl sm:text-3xl font-black text-gray-900 mt-1">€ {stats.totalExpenses.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</p>
             
             {statsCategory === 'totale' && stats.shopExpense > 0 && (
               <div className="mt-3 text-[10px] text-red-700 bg-red-50 border border-red-100/55 rounded-lg py-1 px-2 font-bold flex items-center justify-between">

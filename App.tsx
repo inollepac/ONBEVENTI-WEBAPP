@@ -605,11 +605,64 @@ export default function App() {
         </div>
       </aside>
 
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto h-[calc(100vh-64px)] md:h-screen bg-slate-50/50">
-        <div className="max-w-7xl mx-auto pb-10">
+      <main className="flex-1 p-3 sm:p-5 md:p-8 overflow-y-auto h-[calc(100vh-64px)] md:h-screen bg-slate-50/50 pb-20 md:pb-10">
+        <div className="max-w-7xl mx-auto">
           {renderContent()}
         </div>
       </main>
+
+      {/* Mobile Bottom Tab Bar */}
+      <nav aria-label="Navigazione Mobile" className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-indigo-950/95 backdrop-blur-md border-t border-indigo-800/60 shadow-2xl px-2 py-1 flex justify-around items-center text-white">
+        <button 
+          onClick={navigateToDashboard}
+          className={`flex flex-col items-center py-1.5 px-3 rounded-xl transition-all ${
+            viewState.type === 'DASHBOARD' ? 'text-pink-400 font-bold' : 'text-indigo-300 opacity-70 hover:opacity-100'
+          }`}
+        >
+          <LayoutDashboard className="w-5 h-5" />
+          <span className="text-[10px] mt-0.5 font-medium">Home</span>
+        </button>
+
+        <button 
+          onClick={() => setViewState({ type: 'ONBEVENTI_LIST' })}
+          className={`flex flex-col items-center py-1.5 px-3 rounded-xl transition-all ${
+            ['ONBEVENTI_LIST', 'EVENT_DETAILS', 'CREATE_EVENT', 'EDIT_EVENT'].includes(viewState.type) ? 'text-pink-400 font-bold' : 'text-indigo-300 opacity-70 hover:opacity-100'
+          }`}
+        >
+          <Ticket className="w-5 h-5" />
+          <span className="text-[10px] mt-0.5 font-medium">Eventi</span>
+        </button>
+
+        <button 
+          onClick={() => setViewState({ type: 'PARTICIPANTS' })}
+          className={`flex flex-col items-center py-1.5 px-3 rounded-xl transition-all ${
+            ['PARTICIPANTS', 'PARTICIPANT_DETAILS'].includes(viewState.type) ? 'text-pink-400 font-bold' : 'text-indigo-300 opacity-70 hover:opacity-100'
+          }`}
+        >
+          <Users className="w-5 h-5" />
+          <span className="text-[10px] mt-0.5 font-medium">Membri</span>
+        </button>
+
+        <button 
+          onClick={() => setViewState({ type: 'ONBEDAY_LIST' })}
+          className={`flex flex-col items-center py-1.5 px-3 rounded-xl transition-all ${
+            ['ONBEDAY_LIST', 'ONBEDAY_DETAILS', 'CREATE_ONBEDAY', 'EDIT_ONBEDAY'].includes(viewState.type) ? 'text-pink-400 font-bold' : 'text-indigo-300 opacity-70 hover:opacity-100'
+          }`}
+        >
+          <CalendarIcon className="w-5 h-5" />
+          <span className="text-[10px] mt-0.5 font-medium">ONBEDAY</span>
+        </button>
+
+        <button 
+          onClick={() => setViewState({ type: 'SHOP' })}
+          className={`flex flex-col items-center py-1.5 px-3 rounded-xl transition-all ${
+            viewState.type === 'SHOP' ? 'text-pink-400 font-bold' : 'text-indigo-300 opacity-70 hover:opacity-100'
+          }`}
+        >
+          <ShoppingBag className="w-5 h-5" />
+          <span className="text-[10px] mt-0.5 font-medium">Shop</span>
+        </button>
+      </nav>
 
       <InstallAppModal 
         isOpen={isInstallModalOpen} 

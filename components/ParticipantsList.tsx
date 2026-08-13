@@ -267,26 +267,26 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         {/* Stats Category Toggle */}
-        <div className="flex items-center gap-2 p-1 bg-white rounded-2xl border border-gray-100 w-fit shadow-sm">
+        <div className="flex items-center gap-1.5 p-1 bg-white rounded-2xl border border-gray-100 w-full md:w-fit shadow-sm overflow-x-auto">
           <button 
             onClick={() => setStatsCategory('generale')}
-            className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${statsCategory === 'generale' ? 'bg-indigo-950 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
+            className={`flex-1 md:flex-none px-3 sm:px-6 py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${statsCategory === 'generale' ? 'bg-indigo-950 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
           >
-            <LayoutGrid className="w-4 h-4" />
+            <LayoutGrid className="w-3.5 h-3.5" />
             Generale
           </button>
           <button 
             onClick={() => setStatsCategory('onbeventi')}
-            className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${statsCategory === 'onbeventi' ? 'bg-pink-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
+            className={`flex-1 md:flex-none px-3 sm:px-6 py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${statsCategory === 'onbeventi' ? 'bg-pink-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
           >
-            <Ticket className="w-4 h-4" />
+            <Ticket className="w-3.5 h-3.5" />
             ONBEVENTI
           </button>
           <button 
             onClick={() => setStatsCategory('onbeday')}
-            className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${statsCategory === 'onbeday' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
+            className={`flex-1 md:flex-none px-3 sm:px-6 py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${statsCategory === 'onbeday' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-50'}`}
           >
-            <Calendar className="w-4 h-4" />
+            <Calendar className="w-3.5 h-3.5" />
             ONBEDAY
           </button>
         </div>
@@ -308,85 +308,85 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
-        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-12 h-12 bg-indigo-50 rounded-bl-full"></div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5 sm:gap-4">
+        <div className="bg-white p-3.5 sm:p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-10 sm:w-12 h-10 sm:h-12 bg-indigo-50 rounded-bl-full"></div>
           <div className="relative">
-            <Users className="w-4 h-4 text-indigo-600 mb-2" />
+            <Users className="w-4 h-4 text-indigo-600 mb-1.5" />
             <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Membri Attivi</p>
-            <p className="text-2xl font-black text-gray-900 mt-0.5">{stats.activeMembersCount}</p>
-            <div className="flex gap-2 mt-2">
+            <p className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5">{stats.activeMembersCount}</p>
+            <div className="flex gap-1.5 sm:gap-2 mt-1.5">
               <span className="text-[8px] font-bold text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded">M: {stats.malePercent.toFixed(0)}%</span>
               <span className="text-[8px] font-bold text-pink-500 bg-pink-50 px-1.5 py-0.5 rounded">F: {stats.femalePercent.toFixed(0)}%</span>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-12 h-12 bg-pink-50 rounded-bl-full"></div>
+        <div className="bg-white p-3.5 sm:p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-10 sm:w-12 h-10 sm:h-12 bg-pink-50 rounded-bl-full"></div>
           <div className="relative">
-            <Repeat className="w-4 h-4 text-pink-500 mb-2" />
+            <Repeat className="w-4 h-4 text-pink-500 mb-1.5" />
             <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Frequenza Attivi</p>
-            <p className="text-2xl font-black text-gray-900 mt-0.5">{stats.multiEventPercentage.toFixed(1)}%</p>
-            <p className="text-[8px] text-gray-400 mt-1 font-medium italic">Su membri con min. 1 presenza</p>
+            <p className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5">{stats.multiEventPercentage.toFixed(1)}%</p>
+            <p className="text-[8px] text-gray-400 mt-1 font-medium italic">Min. 1 presenza</p>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-indigo-950 to-indigo-900 p-5 rounded-3xl border border-indigo-800 shadow-xl relative overflow-hidden text-white group">
+        <div className="bg-gradient-to-br from-indigo-950 to-indigo-900 p-3.5 sm:p-5 rounded-3xl border border-indigo-800 shadow-xl relative overflow-hidden text-white group">
           <div className="absolute -top-2 -right-2 w-16 h-16 bg-pink-500/10 rounded-full blur-xl group-hover:scale-150 transition-transform"></div>
           <div className="relative">
-            <Target className="w-4 h-4 text-pink-400 mb-2" />
+            <Target className="w-4 h-4 text-pink-400 mb-1.5" />
             <p className="text-[9px] font-black text-indigo-300 uppercase tracking-widest">Ritorno Reale</p>
-            <p className="text-2xl font-black text-white mt-0.5">{stats.realReturnRate.toFixed(1)}%</p>
+            <p className="text-xl sm:text-2xl font-black text-white mt-0.5">{stats.realReturnRate.toFixed(1)}%</p>
             <p className="text-[8px] text-indigo-400 mt-1 font-bold leading-tight uppercase tracking-tighter">
-              Calcolato su storici presenti
+              Storici presenti
             </p>
           </div>
         </div>
 
         <div 
           onClick={() => setShowConvertedOnly(!showConvertedOnly)}
-          className={`p-5 rounded-3xl border shadow-sm relative overflow-hidden group cursor-pointer transition-all ${
+          className={`p-3.5 sm:p-5 rounded-3xl border shadow-sm relative overflow-hidden group cursor-pointer transition-all ${
             showConvertedOnly 
               ? 'bg-purple-950 border-purple-800 text-white ring-2 ring-purple-500 shadow-xl scale-[1.02]' 
               : 'bg-white border-gray-100 hover:border-purple-200 hover:shadow-md'
           }`}
           title="Clicca per mostrare l'elenco delle persone convertite da ONBEDAY ad ONBEVENTI"
         >
-          <div className={`absolute top-0 right-0 w-12 h-12 rounded-bl-full transition-colors ${showConvertedOnly ? 'bg-purple-900' : 'bg-purple-50'}`}></div>
+          <div className={`absolute top-0 right-0 w-10 sm:w-12 h-10 sm:h-12 rounded-bl-full transition-colors ${showConvertedOnly ? 'bg-purple-900' : 'bg-purple-50'}`}></div>
           <div className="relative">
             <div className="flex items-center justify-between mb-1">
-              <Sparkles className={`w-4 h-4 ${showConvertedOnly ? 'text-purple-300' : 'text-purple-600'}`} />
-              <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full transition-colors ${
+              <Sparkles className={`w-3.5 h-3.5 ${showConvertedOnly ? 'text-purple-300' : 'text-purple-600'}`} />
+              <span className={`text-[7px] sm:text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full transition-colors ${
                 showConvertedOnly ? 'bg-purple-800 text-purple-200 border border-purple-700' : 'bg-purple-50 text-purple-700'
               }`}>
-                {showConvertedOnly ? 'Filtro Attivo' : 'Mostra Lista'}
+                {showConvertedOnly ? 'Filtro' : 'Lista'}
               </span>
             </div>
-            <p className={`text-[9px] font-black uppercase tracking-widest ${showConvertedOnly ? 'text-purple-200' : 'text-gray-400'}`}>Conversione ONBEDAY</p>
-            <p className={`text-2xl font-black mt-0.5 ${showConvertedOnly ? 'text-white' : 'text-purple-700'}`}>{stats.onbeDayConversionRate.toFixed(1)}%</p>
-            <p className={`text-[8px] mt-1 font-medium italic ${showConvertedOnly ? 'text-purple-300' : 'text-gray-400'}`}>
-              {stats.onbeDayConvertedToEventsCount} su {stats.onbeDayNewMembersCount} nuovi in ONBEVENTI
+            <p className={`text-[9px] font-black uppercase tracking-widest ${showConvertedOnly ? 'text-purple-200' : 'text-gray-400'}`}>Conv. ONBEDAY</p>
+            <p className={`text-xl sm:text-2xl font-black mt-0.5 ${showConvertedOnly ? 'text-white' : 'text-purple-700'}`}>{stats.onbeDayConversionRate.toFixed(1)}%</p>
+            <p className={`text-[8px] mt-0.5 font-medium italic ${showConvertedOnly ? 'text-purple-300' : 'text-gray-400'}`}>
+              {stats.onbeDayConvertedToEventsCount} su {stats.onbeDayNewMembersCount}
             </p>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-12 h-12 bg-green-50 rounded-bl-full"></div>
+        <div className="bg-white p-3.5 sm:p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-10 sm:w-12 h-10 sm:h-12 bg-green-50 rounded-bl-full"></div>
           <div className="relative">
-            <Star className="w-4 h-4 text-green-500 mb-2" />
+            <Star className="w-4 h-4 text-green-500 mb-1.5" />
             <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Fedeli Presenti</p>
-            <p className="text-2xl font-black text-gray-900 mt-0.5">{stats.fedelePercentage.toFixed(1)}%</p>
+            <p className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5">{stats.fedelePercentage.toFixed(1)}%</p>
             <p className="text-[8px] text-gray-400 mt-1 font-medium italic">Badge Fedeltà</p>
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-12 h-12 bg-yellow-50 rounded-bl-full"></div>
+        <div className="bg-white p-3.5 sm:p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-10 sm:w-12 h-10 sm:h-12 bg-yellow-50 rounded-bl-full"></div>
           <div className="relative">
-            <Trophy className="w-4 h-4 text-yellow-500 mb-2" />
+            <Trophy className="w-4 h-4 text-yellow-500 mb-1.5" />
             <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">VIP Presenti</p>
-            <p className="text-2xl font-black text-gray-900 mt-0.5">{stats.vipPercentage.toFixed(1)}%</p>
+            <p className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5">{stats.vipPercentage.toFixed(1)}%</p>
             <p className="text-[8px] text-gray-400 mt-1 font-medium italic">Badge VIP</p>
           </div>
         </div>

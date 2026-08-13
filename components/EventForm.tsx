@@ -93,8 +93,8 @@ export const EventForm: React.FC<EventFormProps> = ({ onSave, onCancel, initialD
     }
   };
 
-  const inputClasses = "w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all shadow-sm";
-  const iconClasses = "absolute left-3 top-2.5 w-5 h-5 text-gray-400";
+  const inputClasses = "w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm sm:text-base focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all shadow-sm";
+  const iconClasses = "absolute left-3 top-3.5 w-5 h-5 text-gray-400";
 
   return (
     <div className="max-w-4xl mx-auto animate-fade-in">
@@ -105,14 +105,14 @@ export const EventForm: React.FC<EventFormProps> = ({ onSave, onCancel, initialD
        </button>
 
       <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-        <div className="px-8 py-6 border-b border-gray-100 bg-gray-50/50">
-          <h2 className="text-2xl font-bold text-gray-900">
+        <div className="px-4 sm:px-8 py-5 sm:py-6 border-b border-gray-100 bg-gray-50/50">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
             {isEditing ? 'Modifica Evento' : 'Crea Nuovo Evento'}
           </h2>
-          <p className="text-gray-500 text-sm mt-1">Compila i dettagli qui sotto per configurare il tuo evento ONBE.</p>
+          <p className="text-gray-500 text-xs sm:text-sm mt-1">Compila i dettagli qui sotto per configurare il tuo evento ONBE.</p>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-8 space-y-8">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-8 space-y-6 sm:space-y-8">
           
           {/* Main Info Section */}
           <div className="space-y-6">
