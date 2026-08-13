@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from './Button';
-import { Save, ArrowLeft, ShieldCheck, Database, Trophy, Settings as SettingsIcon, AlertCircle, CheckCircle, ExternalLink, HelpCircle, Copy, Check, Cloud, CloudOff, Smartphone, RefreshCw, AlertTriangle, Key } from 'lucide-react';
+import { Save, ArrowLeft, ShieldCheck, Database, Trophy, Settings as SettingsIcon, AlertCircle, CheckCircle, ExternalLink, HelpCircle, Copy, Check, Cloud, CloudOff, Smartphone, RefreshCw, AlertTriangle, Key, Plus, Trash2, Calendar } from 'lucide-react';
 import { testFirebaseConnection } from '../services/storageService';
 
 interface SettingsProps {
@@ -12,6 +12,11 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
   const [firebaseConfig, setFirebaseConfig] = useState('');
   const [vipThreshold, setVipThreshold] = useState('5');
   const [regularThreshold, setRegularThreshold] = useState('3');
+  
+  // Impostazioni per singola annata
+  const [yearlyThresholds, setYearlyThresholds] = useState<Record<string, { vipThreshold: string; regularThreshold: string }>>({});
+  const [newYearInput, setNewYearInput] = useState('');
+
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +33,52 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
 
     const existingRegular = localStorage.getItem('onbe_regular_threshold');
     if (existingRegular) setRegularThreshold(existingRegular);
+
+    const existingYearly = localStorage.getItem('onbe_loyalty_yearly_thresholds');
+    if (existingYearly) {
+      try {
+        setYearlyThresholds(JSON.parse(existingYearly));
+      } catch (e) {
+        console.error('Errore parsing onbe_loyalty_yearly_thresholds', e);
+      }
+    }
   }, []);
+
+  const handleAddYear = () => {
+    const year = newYearInput.trim();
+    if (!year) return;
+    if (yearlyThresholds[year]) {
+      setError(`L'annata ${year} è già stata aggiunta.`);
+      return;
+    }
+    setError(null);
+    setYearlyThresholds(prev => ({
+      ...prev,
+      [year]: {
+        vipThreshold: vipThreshold || '5',
+        regularThreshold: regularThreshold || '3'
+      }
+    }));
+    setNewYearInput('');
+  };
+
+  const handleRemoveYear = (year: string) => {
+    setYearlyThresholds(prev => {
+      const copy = { ...prev };
+      delete copy[year];
+      return copy;
+    });
+  };
+
+  const handleUpdateYearValue = (year: string, field: 'vipThreshold' | 'regularThreshold', value: string) => {
+    setYearlyThresholds(prev => ({
+      ...prev,
+      [year]: {
+        ...prev[year],
+        [field]: value
+      }
+    }));
+  };
 
   const handleRunTest = async () => {
     setIsTesting(true);
@@ -49,13 +99,23 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
     e.preventDefault();
     setError(null);
 
+    // Validazione globale
     if (Number(vipThreshold) <= Number(regularThreshold)) {
-      setError("La soglia VIP deve essere superiore alla soglia Membro Fedele.");
+      setError("Nelle impostazioni generali: La soglia VIP deve essere superiore alla soglia Membro Fedele.");
       return;
+    }
+
+    // Validazione annate singole
+    for (const [yr, conf] of Object.entries(yearlyThresholds)) {
+      if (Number(conf.vipThreshold) <= Number(conf.regularThreshold)) {
+        setError(`Nell'annata ${yr}: La soglia VIP deve essere superiore alla soglia Membro Fedele.`);
+        return;
+      }
     }
 
     localStorage.setItem('onbe_vip_threshold', vipThreshold);
     localStorage.setItem('onbe_regular_threshold', regularThreshold);
+    localStorage.setItem('onbe_loyalty_yearly_thresholds', JSON.stringify(yearlyThresholds));
     
     const configInput = firebaseConfig.trim();
     if (configInput) {
@@ -110,31 +170,144 @@ export const Settings: React.FC<SettingsProps> = ({ onBack }) => {
             </div>
           )}
 
-          <div className="space-y-4">
-             <div className="flex items-center justify-between">
-                <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                    <Trophy className="w-4 h-4 text-yellow-500" /> Loyalty Badges System
-                </h3>
+          <div className="space-y-6">
+             <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                <div>
+                  <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
+                      <Trophy className="w-4.5 h-4.5 text-amber-500" /> Loyalty Badges System
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Definisci le soglie di presenze per il conferimento automatizzato dei badge VIP e Fedeltà.
+                  </p>
+                </div>
              </div>
-             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                  <label className="block text-xs font-black text-gray-500 uppercase mb-2">Soglia VIP (Presenze)</label>
-                  <input 
-                    type="number" 
-                    value={vipThreshold} 
-                    onChange={e => setVipThreshold(e.target.value)} 
-                    className="w-full px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-pink-500 outline-none transition-all" 
-                  />
+
+             {/* 1. Impostazioni Generali (Tutte le Annate) */}
+             <div className="bg-amber-50/50 p-5 rounded-2xl border border-amber-200/60 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase text-amber-900 tracking-wider flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-amber-600" />
+                    Impostazioni Generali (Valide per Tutte le Annate)
+                  </span>
+                  <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200">
+                    Default
+                  </span>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                  <label className="block text-xs font-black text-gray-500 uppercase mb-2">Soglia Fedeltà (Presenze)</label>
-                  <input 
-                    type="number" 
-                    value={regularThreshold} 
-                    onChange={e => setRegularThreshold(e.target.value)} 
-                    className="w-full px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-bold focus:ring-2 focus:ring-pink-500 outline-none transition-all" 
-                  />
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  Queste soglie si applicano di default a qualsiasi annata che non disponga di una regola specifica.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div className="bg-white p-3.5 rounded-xl border border-amber-200 shadow-sm">
+                    <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">Soglia VIP Generale (Presenze)</label>
+                    <input 
+                      type="number" 
+                      min="1"
+                      value={vipThreshold} 
+                      onChange={e => setVipThreshold(e.target.value)} 
+                      className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-black text-gray-900 focus:ring-2 focus:ring-amber-500 outline-none transition-all" 
+                    />
+                  </div>
+                  <div className="bg-white p-3.5 rounded-xl border border-amber-200 shadow-sm">
+                    <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">Soglia Fedeltà Generale (Presenze)</label>
+                    <input 
+                      type="number" 
+                      min="1"
+                      value={regularThreshold} 
+                      onChange={e => setRegularThreshold(e.target.value)} 
+                      className="w-full px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-black text-gray-900 focus:ring-2 focus:ring-amber-500 outline-none transition-all" 
+                    />
+                  </div>
                 </div>
+             </div>
+
+             {/* 2. Impostazioni Specifiche per Singola Annata */}
+             <div className="space-y-4 pt-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-2">
+                  <div>
+                    <h4 className="text-xs font-black uppercase text-indigo-950 tracking-wider flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-indigo-600" />
+                      Regole Specifiche per Singola Annata
+                    </h4>
+                    <p className="text-[11px] text-gray-400 mt-0.5">
+                      Personalizza le soglie per annate particolari (es. 2024, 2025).
+                    </p>
+                  </div>
+
+                  {/* Form per Aggiungere un'Annata Specificata */}
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="text" 
+                      placeholder="Anno (es. 2025)"
+                      value={newYearInput}
+                      onChange={e => setNewYearInput(e.target.value)}
+                      className="w-28 px-3 py-1.5 text-xs font-bold border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddYear}
+                      className="px-3 py-1.5 bg-indigo-950 hover:bg-indigo-900 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-1 shrink-0"
+                    >
+                      <Plus className="w-3.5 h-3.5 text-pink-400" /> Aggiungi
+                    </button>
+                  </div>
+                </div>
+
+                {Object.keys(yearlyThresholds).length === 0 ? (
+                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 text-center">
+                    <p className="text-xs text-gray-400 font-medium">
+                      Nessuna regola specifica impostata per singole annate. Tutte le annate utilizzeranno le <b>Soglie Generali</b> sopra configurate.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {Object.entries(yearlyThresholds).map(([yr, config]) => (
+                      <div key={yr} className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:border-indigo-200 transition-all">
+                        <div className="flex items-center gap-2.5 shrink-0">
+                          <div className="p-2 bg-indigo-50 text-indigo-700 rounded-xl border border-indigo-100">
+                            <Calendar className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-black uppercase text-gray-900 block">Annata {yr}</span>
+                            <span className="text-[10px] text-indigo-600 font-bold">Regole Personalizzate</span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 w-full sm:w-auto">
+                          <div>
+                            <label className="block text-[9px] font-black text-gray-400 uppercase mb-0.5">Soglia VIP {yr}</label>
+                            <input 
+                              type="number" 
+                              min="1"
+                              value={config.vipThreshold} 
+                              onChange={e => handleUpdateYearValue(yr, 'vipThreshold', e.target.value)} 
+                              className="w-full sm:w-24 px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs font-black focus:ring-2 focus:ring-indigo-500 outline-none" 
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[9px] font-black text-gray-400 uppercase mb-0.5">Soglia Fedeltà {yr}</label>
+                            <input 
+                              type="number" 
+                              min="1"
+                              value={config.regularThreshold} 
+                              onChange={e => handleUpdateYearValue(yr, 'regularThreshold', e.target.value)} 
+                              className="w-full sm:w-24 px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-lg text-xs font-black focus:ring-2 focus:ring-indigo-500 outline-none" 
+                            />
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveYear(yr)}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all self-end sm:self-center"
+                          title={`Rimuovi regole personalizzate per l'annata ${yr}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
              </div>
           </div>
 

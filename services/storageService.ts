@@ -756,6 +756,31 @@ export const deleteShopSale = async (id: string): Promise<void> => {
   }
 };
 
+export const getLoyaltyThresholds = (year?: string): { vipThreshold: number; regularThreshold: number } => {
+  const globalVip = Number(localStorage.getItem('onbe_vip_threshold') || '5');
+  const globalRegular = Number(localStorage.getItem('onbe_regular_threshold') || '3');
+
+  if (!year || year === 'all') {
+    return { vipThreshold: globalVip, regularThreshold: globalRegular };
+  }
+
+  try {
+    const raw = localStorage.getItem('onbe_loyalty_yearly_thresholds');
+    if (raw) {
+      const yearlyMap: Record<string, { vipThreshold?: number; regularThreshold?: number }> = JSON.parse(raw);
+      if (yearlyMap[year]) {
+        const yearVip = yearlyMap[year].vipThreshold !== undefined ? Number(yearlyMap[year].vipThreshold) : globalVip;
+        const yearRegular = yearlyMap[year].regularThreshold !== undefined ? Number(yearlyMap[year].regularThreshold) : globalRegular;
+        return { vipThreshold: yearVip, regularThreshold: yearRegular };
+      }
+    }
+  } catch (e) {
+    console.error("Error reading onbe_loyalty_yearly_thresholds", e);
+  }
+
+  return { vipThreshold: globalVip, regularThreshold: globalRegular };
+};
+
 export const testFirebaseConnection = async (): Promise<{ success: boolean; message: string; code?: string }> => {
   const configStr = localStorage.getItem(FIREBASE_CONFIG_KEY);
   if (!configStr || !configStr.trim()) {

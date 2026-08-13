@@ -1,7 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { AppEvent, Attendee, OnbeDay, PaymentStatus } from '../types';
-import { Users, Search, Mail, Phone, ArrowLeft, SortAsc, SortDesc, Trophy, Star, Repeat, Target, LayoutGrid, Ticket, Calendar, Filter, ChevronDown, ShieldAlert, ShieldCheck, Sparkles } from 'lucide-react';
+import { Users, Search, Mail, Phone, ArrowLeft, SortAsc, SortDesc, Trophy, Star, Repeat, Target, LayoutGrid, Ticket, Calendar, Filter, ChevronDown, ShieldAlert, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { getLoyaltyThresholds } from '../services/storageService';
 
 interface ParticipantsListProps {
   events: AppEvent[];
@@ -13,6 +14,7 @@ interface ParticipantsListProps {
 type SortKey = 'name' | 'eventsCount';
 type SortOrder = 'asc' | 'desc';
 type StatsCategory = 'generale' | 'onbeventi' | 'onbeday';
+type FilterCategory = 'ALL' | 'CONVERTED' | 'FEDELE' | 'VIP';
 
 export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbeDays, onBack, onParticipantClick }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -20,10 +22,7 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [statsCategory, setStatsCategory] = useState<StatsCategory>('generale');
   const [selectedYear, setSelectedYear] = useState<string>('all');
-  const [showConvertedOnly, setShowConvertedOnly] = useState(false);
-
-  const vipThreshold = Number(localStorage.getItem('onbe_vip_threshold') || '5');
-  const regularThreshold = Number(localStorage.getItem('onbe_regular_threshold') || '3');
+  const [filterCategory, setFilterCategory] = useState<FilterCategory>('ALL');
 
   const availableYears = useMemo(() => {
     const years = new Set<string>();
@@ -32,7 +31,9 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
     return Array.from(years).sort((a, b) => b.localeCompare(a));
   }, [events, onbeDays]);
 
-  const { list, stats } = useMemo(() => {
+  const { list, stats, fedeleCount, vipCount, regularThreshold, vipThreshold } = useMemo(() => {
+    const { vipThreshold, regularThreshold } = getLoyaltyThresholds(selectedYear);
+
     const filterByYear = (items: any[]) => selectedYear === 'all' 
       ? items 
       : items.filter(e => new Date(e.date).getFullYear().toString() === selectedYear);
@@ -86,7 +87,6 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
             existing.firstEventDate = itemTimestamp;
           }
           existing.eventTitles.push(item.title);
-          // Aggiorniamo il genere se non presente nel vecchio record ma presente nel nuovo
           if (!existing.attendee.gender && a.gender) {
             existing.attendee.gender = a.gender;
           }
@@ -112,48 +112,54 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
     const allYearEvents = filterByYear(events || []);
     const allYearOnbeDays = filterByYear(onbeDays || []);
 
-    const memberJourneyMap = new Map<string, {
-      firstType: 'ONBEVENTO' | 'ONBEDAY';
-      firstDate: number;
-      hasAttendedOnbeventi: boolean;
-    }>();
+    const memberAttendancesMap = new Map<string, Array<{ date: number; type: 'ONBEVENTO' | 'ONBEDAY' }>>();
 
-    const recordMemberJourney = (item: AppEvent | OnbeDay, type: 'ONBEVENTO' | 'ONBEDAY') => {
+    const recordMemberAttendance = (item: AppEvent | OnbeDay, type: 'ONBEVENTO' | 'ONBEDAY') => {
       const itemDate = new Date(item.date).getTime();
       (item.attendees || []).forEach(a => {
-        if (a.isPresent === false) return; // Conta solo presenze effettive
+        if (a.isPresent === false) return; // solo presenze effettive
         const key = (a.email || a.phone || a.name).toLowerCase().trim();
         if (!key) return;
 
-        if (memberJourneyMap.has(key)) {
-          const entry = memberJourneyMap.get(key)!;
-          if (type === 'ONBEVENTO') {
-            entry.hasAttendedOnbeventi = true;
-          }
-          if (itemDate < entry.firstDate) {
-            entry.firstDate = itemDate;
-            entry.firstType = type;
-          }
-        } else {
-          memberJourneyMap.set(key, {
-            firstType: type,
-            firstDate: itemDate,
-            hasAttendedOnbeventi: type === 'ONBEVENTO'
-          });
+        if (!memberAttendancesMap.has(key)) {
+          memberAttendancesMap.set(key, []);
         }
+        memberAttendancesMap.get(key)!.push({ date: itemDate, type });
       });
     };
 
-    allYearOnbeDays.forEach(od => recordMemberJourney(od, 'ONBEDAY'));
-    allYearEvents.forEach(ev => recordMemberJourney(ev, 'ONBEVENTO'));
+    allYearOnbeDays.forEach(od => recordMemberAttendance(od, 'ONBEDAY'));
+    allYearEvents.forEach(ev => recordMemberAttendance(ev, 'ONBEVENTO'));
+
+    const memberJourneyMap = new Map<string, {
+      isAcquiredViaOnbeDay: boolean;
+      isConvertedToOnbeventi: boolean;
+    }>();
+
+    memberAttendancesMap.forEach((attendances, key) => {
+      attendances.sort((a, b) => a.date - b.date);
+      if (attendances.length > 0) {
+        const firstAttendance = attendances[0];
+        // 1. Ha partecipato come prima cosa ad un ONBEDAY
+        const isAcquiredViaOnbeDay = firstAttendance.type === 'ONBEDAY';
+        
+        // 2. Ha successivamente preso parte ad almeno un ONBEVENTI
+        const hasSubsequentOnbeventi = isAcquiredViaOnbeDay && attendances.some(att => att.type === 'ONBEVENTO' && att.date >= firstAttendance.date);
+
+        memberJourneyMap.set(key, {
+          isAcquiredViaOnbeDay,
+          isConvertedToOnbeventi: Boolean(isAcquiredViaOnbeDay && hasSubsequentOnbeventi)
+        });
+      }
+    });
 
     let onbeDayNewMembersCount = 0;
     let onbeDayConvertedToEventsCount = 0;
 
     memberJourneyMap.forEach(journey => {
-      if (journey.firstType === 'ONBEDAY') {
+      if (journey.isAcquiredViaOnbeDay) {
         onbeDayNewMembersCount += 1;
-        if (journey.hasAttendedOnbeventi) {
+        if (journey.isConvertedToOnbeventi) {
           onbeDayConvertedToEventsCount += 1;
         }
       }
@@ -165,8 +171,8 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
 
     const fullList = Array.from(map.values()).map(item => {
       const journey = memberJourneyMap.get(item.key);
-      const isAcquiredViaOnbeDay = journey?.firstType === 'ONBEDAY';
-      const isConvertedToOnbeventi = Boolean(isAcquiredViaOnbeDay && journey?.hasAttendedOnbeventi);
+      const isAcquiredViaOnbeDay = Boolean(journey?.isAcquiredViaOnbeDay);
+      const isConvertedToOnbeventi = Boolean(journey?.isConvertedToOnbeventi);
       return {
         ...item,
         isVip: item.eventsCount >= vipThreshold,
@@ -176,10 +182,9 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
       };
     });
 
-    // Consideriamo solo i membri con almeno UNA presenza effettiva per le statistiche demografiche e di ritorno
     const activeList = fullList.filter(m => m.eventsCount > 0);
-    const totalMembersCount = fullList.length; // Totale anagrafica
-    const activeMembersCount = activeList.length; // Totale presenti almeno una volta
+    const totalMembersCount = fullList.length;
+    const activeMembersCount = activeList.length;
 
     const multiEventCount = activeList.filter(m => m.eventsCount > 1).length;
     const fedeleCount = activeList.filter(m => m.isRegular).length;
@@ -189,7 +194,6 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
       return acc + (item.attendees || []).filter(a => !a.hasWaiver).length;
     }, 0);
 
-    // --- Calcolo Generi su membri ATTIVI ---
     const maleCount = activeList.filter(m => m.attendee.gender === 'M').length;
     const femaleCount = activeList.filter(m => m.attendee.gender === 'F').length;
     const malePercent = activeMembersCount > 0 ? (maleCount / activeMembersCount) * 100 : 0;
@@ -217,9 +221,14 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
     };
     
     let filteredList = [...fullList];
-    if (showConvertedOnly) {
+    if (filterCategory === 'CONVERTED') {
       filteredList = filteredList.filter(item => item.isConvertedToOnbeventi);
+    } else if (filterCategory === 'FEDELE') {
+      filteredList = filteredList.filter(item => item.isRegular);
+    } else if (filterCategory === 'VIP') {
+      filteredList = filteredList.filter(item => item.isVip);
     }
+
     if (searchTerm) {
       const lowerSearch = searchTerm.toLowerCase();
       filteredList = filteredList.filter(item => 
@@ -239,8 +248,8 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
       }
     });
 
-    return { list: filteredList, stats };
-  }, [events, onbeDays, searchTerm, sortKey, sortOrder, vipThreshold, regularThreshold, statsCategory, selectedYear, showConvertedOnly]);
+    return { list: filteredList, stats, fedeleCount, vipCount, regularThreshold, vipThreshold };
+  }, [events, onbeDays, statsCategory, selectedYear, filterCategory, searchTerm, sortKey, sortOrder]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -345,49 +354,83 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
         </div>
 
         <div 
-          onClick={() => setShowConvertedOnly(!showConvertedOnly)}
+          onClick={() => setFilterCategory(prev => prev === 'CONVERTED' ? 'ALL' : 'CONVERTED')}
           className={`p-3.5 sm:p-5 rounded-3xl border shadow-sm relative overflow-hidden group cursor-pointer transition-all ${
-            showConvertedOnly 
+            filterCategory === 'CONVERTED' 
               ? 'bg-purple-950 border-purple-800 text-white ring-2 ring-purple-500 shadow-xl scale-[1.02]' 
               : 'bg-white border-gray-100 hover:border-purple-200 hover:shadow-md'
           }`}
           title="Clicca per mostrare l'elenco delle persone convertite da ONBEDAY ad ONBEVENTI"
         >
-          <div className={`absolute top-0 right-0 w-10 sm:w-12 h-10 sm:h-12 rounded-bl-full transition-colors ${showConvertedOnly ? 'bg-purple-900' : 'bg-purple-50'}`}></div>
+          <div className={`absolute top-0 right-0 w-10 sm:w-12 h-10 sm:h-12 rounded-bl-full transition-colors ${filterCategory === 'CONVERTED' ? 'bg-purple-900' : 'bg-purple-50'}`}></div>
           <div className="relative">
             <div className="flex items-center justify-between mb-1">
-              <Sparkles className={`w-3.5 h-3.5 ${showConvertedOnly ? 'text-purple-300' : 'text-purple-600'}`} />
+              <Sparkles className={`w-3.5 h-3.5 ${filterCategory === 'CONVERTED' ? 'text-purple-300' : 'text-purple-600'}`} />
               <span className={`text-[7px] sm:text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full transition-colors ${
-                showConvertedOnly ? 'bg-purple-800 text-purple-200 border border-purple-700' : 'bg-purple-50 text-purple-700'
+                filterCategory === 'CONVERTED' ? 'bg-purple-800 text-purple-200 border border-purple-700' : 'bg-purple-50 text-purple-700'
               }`}>
-                {showConvertedOnly ? 'Filtro' : 'Lista'}
+                {filterCategory === 'CONVERTED' ? 'Filtro Attivo' : 'Filtra'}
               </span>
             </div>
-            <p className={`text-[9px] font-black uppercase tracking-widest ${showConvertedOnly ? 'text-purple-200' : 'text-gray-400'}`}>Conv. ONBEDAY</p>
-            <p className={`text-xl sm:text-2xl font-black mt-0.5 ${showConvertedOnly ? 'text-white' : 'text-purple-700'}`}>{stats.onbeDayConversionRate.toFixed(1)}%</p>
-            <p className={`text-[8px] mt-0.5 font-medium italic ${showConvertedOnly ? 'text-purple-300' : 'text-gray-400'}`}>
+            <p className={`text-[9px] font-black uppercase tracking-widest ${filterCategory === 'CONVERTED' ? 'text-purple-200' : 'text-gray-400'}`}>Conv. ONBEDAY</p>
+            <p className={`text-xl sm:text-2xl font-black mt-0.5 ${filterCategory === 'CONVERTED' ? 'text-white' : 'text-purple-700'}`}>{stats.onbeDayConversionRate.toFixed(1)}%</p>
+            <p className={`text-[8px] mt-0.5 font-medium italic ${filterCategory === 'CONVERTED' ? 'text-purple-300' : 'text-gray-400'}`}>
               {stats.onbeDayConvertedToEventsCount} su {stats.onbeDayNewMembersCount}
             </p>
           </div>
         </div>
 
-        <div className="bg-white p-3.5 sm:p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-10 sm:w-12 h-10 sm:h-12 bg-green-50 rounded-bl-full"></div>
+        <div 
+          onClick={() => setFilterCategory(prev => prev === 'FEDELE' ? 'ALL' : 'FEDELE')}
+          className={`p-3.5 sm:p-5 rounded-3xl border shadow-sm relative overflow-hidden group cursor-pointer transition-all ${
+            filterCategory === 'FEDELE' 
+              ? 'bg-emerald-950 border-emerald-800 text-white ring-2 ring-emerald-500 shadow-xl scale-[1.02]' 
+              : 'bg-white border-gray-100 hover:border-emerald-200 hover:shadow-md'
+          }`}
+          title="Clicca per mostrare l'elenco dei membri Fedeli"
+        >
+          <div className={`absolute top-0 right-0 w-10 sm:w-12 h-10 sm:h-12 rounded-bl-full transition-colors ${filterCategory === 'FEDELE' ? 'bg-emerald-900' : 'bg-emerald-50'}`}></div>
           <div className="relative">
-            <Star className="w-4 h-4 text-green-500 mb-1.5" />
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Fedeli Presenti</p>
-            <p className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5">{stats.fedelePercentage.toFixed(1)}%</p>
-            <p className="text-[8px] text-gray-400 mt-1 font-medium italic">Badge Fedeltà</p>
+            <div className="flex items-center justify-between mb-1">
+              <Star className={`w-3.5 h-3.5 ${filterCategory === 'FEDELE' ? 'text-emerald-300' : 'text-emerald-500'}`} />
+              <span className={`text-[7px] sm:text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full transition-colors ${
+                filterCategory === 'FEDELE' ? 'bg-emerald-800 text-emerald-200 border border-emerald-700' : 'bg-emerald-50 text-emerald-700'
+              }`}>
+                {filterCategory === 'FEDELE' ? 'Filtro Attivo' : 'Filtra'}
+              </span>
+            </div>
+            <p className={`text-[9px] font-black uppercase tracking-widest ${filterCategory === 'FEDELE' ? 'text-emerald-200' : 'text-gray-400'}`}>Fedeli Presenti</p>
+            <p className={`text-xl sm:text-2xl font-black mt-0.5 ${filterCategory === 'FEDELE' ? 'text-white' : 'text-gray-900'}`}>{stats.fedelePercentage.toFixed(1)}%</p>
+            <p className={`text-[8px] mt-1 font-medium italic ${filterCategory === 'FEDELE' ? 'text-emerald-300' : 'text-gray-400'}`}>
+              {fedeleCount} persone (Soglia: {regularThreshold}+)
+            </p>
           </div>
         </div>
 
-        <div className="bg-white p-3.5 sm:p-5 rounded-3xl border border-gray-100 shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-10 sm:w-12 h-10 sm:h-12 bg-yellow-50 rounded-bl-full"></div>
+        <div 
+          onClick={() => setFilterCategory(prev => prev === 'VIP' ? 'ALL' : 'VIP')}
+          className={`p-3.5 sm:p-5 rounded-3xl border shadow-sm relative overflow-hidden group cursor-pointer transition-all ${
+            filterCategory === 'VIP' 
+              ? 'bg-amber-950 border-amber-800 text-white ring-2 ring-amber-500 shadow-xl scale-[1.02]' 
+              : 'bg-white border-gray-100 hover:border-amber-200 hover:shadow-md'
+          }`}
+          title="Clicca per mostrare l'elenco dei membri VIP"
+        >
+          <div className={`absolute top-0 right-0 w-10 sm:w-12 h-10 sm:h-12 rounded-bl-full transition-colors ${filterCategory === 'VIP' ? 'bg-amber-900' : 'bg-amber-50'}`}></div>
           <div className="relative">
-            <Trophy className="w-4 h-4 text-yellow-500 mb-1.5" />
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">VIP Presenti</p>
-            <p className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5">{stats.vipPercentage.toFixed(1)}%</p>
-            <p className="text-[8px] text-gray-400 mt-1 font-medium italic">Badge VIP</p>
+            <div className="flex items-center justify-between mb-1">
+              <Trophy className={`w-3.5 h-3.5 ${filterCategory === 'VIP' ? 'text-amber-300' : 'text-amber-500'}`} />
+              <span className={`text-[7px] sm:text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full transition-colors ${
+                filterCategory === 'VIP' ? 'bg-amber-800 text-amber-200 border border-amber-700' : 'bg-amber-50 text-amber-700'
+              }`}>
+                {filterCategory === 'VIP' ? 'Filtro Attivo' : 'Filtra'}
+              </span>
+            </div>
+            <p className={`text-[9px] font-black uppercase tracking-widest ${filterCategory === 'VIP' ? 'text-amber-200' : 'text-gray-400'}`}>VIP Presenti</p>
+            <p className={`text-xl sm:text-2xl font-black mt-0.5 ${filterCategory === 'VIP' ? 'text-white' : 'text-gray-900'}`}>{stats.vipPercentage.toFixed(1)}%</p>
+            <p className={`text-[8px] mt-1 font-medium italic ${filterCategory === 'VIP' ? 'text-amber-300' : 'text-gray-400'}`}>
+              {vipCount} persone (Soglia: {vipThreshold}+)
+            </p>
           </div>
         </div>
 
@@ -402,26 +445,36 @@ export const ParticipantsList: React.FC<ParticipantsListProps> = ({ events, onbe
         </div>
       </div>
 
-      {showConvertedOnly && (
-        <div className="bg-gradient-to-r from-purple-950 via-indigo-950 to-purple-900 text-white p-4.5 rounded-3xl border border-purple-800/80 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fade-in">
+      {filterCategory !== 'ALL' && (
+        <div className={`p-4.5 rounded-3xl border shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fade-in text-white ${
+          filterCategory === 'CONVERTED' ? 'bg-gradient-to-r from-purple-950 via-indigo-950 to-purple-900 border-purple-800' :
+          filterCategory === 'FEDELE' ? 'bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-900 border-emerald-800' :
+          'bg-gradient-to-r from-amber-950 via-slate-900 to-amber-900 border-amber-800'
+        }`}>
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-purple-500/20 rounded-2xl text-purple-300 border border-purple-400/20 shrink-0">
-              <Sparkles className="w-5 h-5 text-purple-300" />
+            <div className="p-2.5 bg-white/10 rounded-2xl border border-white/20 shrink-0">
+              {filterCategory === 'CONVERTED' && <Sparkles className="w-5 h-5 text-purple-300" />}
+              {filterCategory === 'FEDELE' && <Star className="w-5 h-5 text-emerald-300" />}
+              {filterCategory === 'VIP' && <Trophy className="w-5 h-5 text-amber-300" />}
             </div>
             <div>
-              <h4 className="text-xs font-black uppercase tracking-wider text-purple-200 flex items-center gap-2">
-                Elenco Membri Convertiti ({stats.onbeDayConvertedToEventsCount} persone)
+              <h4 className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2">
+                {filterCategory === 'CONVERTED' && `Elenco Membri Convertiti (${stats.onbeDayConvertedToEventsCount} persone)`}
+                {filterCategory === 'FEDELE' && `Elenco Membri Fedeli (${fedeleCount} persone - Soglia: ${regularThreshold}+ presenze)`}
+                {filterCategory === 'VIP' && `Elenco Membri VIP (${vipCount} persone - Soglia: ${vipThreshold}+ presenze)`}
               </h4>
-              <p className="text-xs text-purple-300/80 mt-0.5">
-                Membri arrivati originariamente tramite un ONBEDAY che hanno successivamente partecipato anche agli ONBEVENTI.
+              <p className="text-xs text-white/80 mt-0.5">
+                {filterCategory === 'CONVERTED' && "Membri arrivati originariamente tramite un ONBEDAY che hanno successivamente partecipato anche ad almeno un ONBEVENTI."}
+                {filterCategory === 'FEDELE' && `Mostrando tutti i membri con almeno ${regularThreshold} presenze effettive (e meno di ${vipThreshold}).`}
+                {filterCategory === 'VIP' && `Mostrando tutti i membri con almeno ${vipThreshold} presenze effettive.`}
               </p>
             </div>
           </div>
           <button
-            onClick={() => setShowConvertedOnly(false)}
+            onClick={() => setFilterCategory('ALL')}
             className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl border border-white/20 transition-all self-stretch sm:self-auto text-center shrink-0"
           >
-            Ripristina (Mostra Tutti)
+            Mostra Tutti
           </button>
         </div>
       )}
